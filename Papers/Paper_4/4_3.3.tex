@@ -1,0 +1,382 @@
+\subsubsection{Lan truyền tiến cho một lô dữ liệu}
+Trong thực tế, mạng nơ-ron thường xử lý đồng thời một số lượng hữu hạn mẫu dữ liệu thay vì chỉ xử lý từng mẫu riêng lẻ. Tập hợp các mẫu được xử lý đồng thời này được gọi là một lô dữ liệu. 
+\paragraph{1. Biểu diễn dữ liệu theo lô.\\}
+Trong mạng nơ-ron có $L$ lớp (với $l=0$ biểu thị lớp đầu vào), xử lý song song một lô dữ liệu gồm $m$ mẫu độc lập, ma trận kích hoạt $\mathbf{A}^{[l]}$ của toàn bộ lô dữ liệu tại lớp $l$ được biểu diễn bằng cách ghép các véc-tơ cột như sau:
+\begin{equation}
+    \mathbf{A}^{[l]} =
+    \begin{bmatrix}
+        \Big| & \Big| & & \Big| \\
+        \mathbf{a}^{[l](1)} & \mathbf{a}^{[l](2)} & \cdots & \mathbf{a}^{[l](m)} \\
+        \Big| & \Big| & & \Big|
+    \end{bmatrix}
+    \in \mathbb{R}^{n_l \times m}.
+    \label{eq:ma_tran_kich_hoat_tong_quat}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $m \in \mathbb{N}^*$: Kích thước lô, tương ứng với số lượng mẫu dữ liệu ($i = 1, 2, \dots, m$).
+    \item $n_l \in \mathbb{N}^*$: Số lượng nơ-ron tại lớp $l$ ($n_0$ tương ứng với số chiều đặc trưng của dữ liệu đầu vào).
+    \item $\mathbf{A}^{[l]}$: Ma trận kích hoạt tại lớp $l$ của toàn bộ lô dữ liệu.
+    \item $\mathbf{a}^{[l](i)} \in \mathbb{R}^{n_l}$: Véc-tơ kích hoạt (dạng véc-tơ cột) tại lớp $l$ của mẫu dữ liệu độc lập thứ $i$.
+    \item Chỉ số trên ngoặc vuông $[l]$: Quy ước chỉ số thứ tự của lớp tính toán trong mạng nơ-ron. Ở đây, $[0]$ biểu thị lớp đầu vào.
+    \item Chỉ số trên ngoặc đơn $(i)$: Biểu thị chỉ số thứ tự của mẫu dữ liệu trong lô, với $i \in \{1, 2, \dots, m\}$.
+    \item Ký hiệu vạch đứng $\Big|$: Quy ước trình bày trực quan trong đại số tuyến tính nhằm chỉ rõ rằng mỗi phần tử là một \textbf{véc-tơ cột} thay vì một đại lượng vô hướng. 
+\end{itemize}
+
+\paragraph{2. Không gian tham số.\\}
+Xét lớp thứ $l$ có $n_l$ nơ-ron, mỗi nơ-ron nhận tín hiệu truyền từ $n_{l-1}$ nơ-ron của lớp $l-1$ theo cấu trúc kết nối đầy đủ. Tại một nơ-ron thứ $j$ bất kỳ ở lớp $l$ ($j = 1, \dots, n_l$):
+\begin{itemize}
+    \item Nơ-ron này nhận $n_{l-1}$ tín hiệu từ các nơ-ron của lớp $l-1$. Trọng số của liên kết truyền từ nơ-ron thứ $k$ tới nơ-ron $j$ được ký hiệu là $w_{jk}^{[l]}$. Tập toàn bộ $n_{l-1}$ trọng số kết nối vào nơ-ron $j$ như trên được nhóm thành một \textbf{véc-tơ hàng}:
+    $$\mathbf{w}_j^{[l]} = \begin{bmatrix} w_{j1}^{[l]} & w_{j2}^{[l]} & \cdots & w_{j n_{l-1}}^{[l]} \end{bmatrix} \in \mathbb{R}^{1 \times n_{l-1}}$$
+    \item Ngoài ra, nơ-ron $j$ này còn kết nối với một độ chệch, ký hiệu: $b_j^{[l]} \in \mathbb{R}$.
+\end{itemize}
+
+\subparagraph{2.1. Ma trận trọng số toàn bộ nơ-ron tại lớp $\mathbf{W}^{[l]}$\\}
+Bằng cách xếp chồng $n_l$ véc-tơ hàng trọng số $\mathbf{w}_j^{[l]}$ tương ứng với $n_l$ nơ-ron của lớp $l$ theo chiều dọc, ta thu được ma trận trọng số của toàn bộ nơ-ron lớp $l$:
+\begin{equation}
+\mathbf{W}^{[l]} = \begin{bmatrix} 
+    \mathbf{w}_1^{[l]} \\[4pt] 
+    \mathbf{w}_2^{[l]} \\[4pt] 
+    \vdots \\[4pt] 
+    \mathbf{w}_{n_l}^{[l]} 
+\end{bmatrix} = \begin{bmatrix} 
+    w_{11}^{[l]} & w_{12}^{[l]} & \cdots & w_{1 n_{l-1}}^{[l]} \\ 
+    w_{21}^{[l]} & w_{22}^{[l]} & \cdots & w_{2 n_{l-1}}^{[l]} \\ 
+    \vdots & \vdots & \ddots & \vdots \\ 
+    w_{n_l 1}^{[l]} & w_{n_l 2}^{[l]} & \cdots & w_{n_l n_{l-1}}^{[l]} 
+\end{bmatrix} \in \mathbb{R}^{n_l \times n_{l-1}}
+\label{eq:ma_tran_trong_so}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\mathbf{W}^{[l]}$: Ma trận trọng số cho lô dữ liệu kết nối từ lớp $l-1$ sang lớp $l$.
+
+    \item $\mathbf{w}_j^{[l]}$ (với $j \in \{1, 2, \dots, n_l\}$): Véc-tơ hàng kích thước $1 \times n_{l-1}$, chứa toàn bộ các trọng số kết nối từ tất cả $n_{l-1}$ nơ-ron của lớp $l-1$ đến riêng nơ-ron thứ $j$ của lớp $l$:
+    \[
+    \mathbf{w}_j^{[l]} = \begin{bmatrix} w_{j1}^{[l]} & w_{j2}^{[l]} & \cdots & w_{j n_{l-1}}^{[l]} \end{bmatrix}
+    \]
+
+    \item $w_{jk}^{[l]}$: Trọng số vô hướng liên kết giữa hai nơ-ron cụ thể:
+    \begin{itemize}
+        \item Chỉ số thứ nhất ($j$): Chỉ số nơ-ron \textbf{đích} (thuộc lớp $l$, với $j = 1, \dots, n_l$).
+        \item Chỉ số thứ hai ($k$): Chỉ số nơ-ron \textbf{nguồn} (thuộc lớp $l-1$, với $k = 1, \dots, n_{l-1}$).
+    \end{itemize}
+    \emph{\textbf{Lưu ý}: Quy ước thứ tự chỉ số này ($w_{\text{đích}, \text{nguồn}}$) đảm bảo khi thực hiện phép nhân ma trận $\mathbf{W}^{[l]} \mathbf{a}^{[l-1]}$, nơ-ron thứ $j$ nhận đúng tổ hợp tuyến tính từ lớp trước.}
+
+    \item $\mathbb{R}^{n_l \times n_{l-1}}$: Không gian các ma trận thực kích thước $n_l$ hàng và $n_{l-1}$ cột.
+\end{itemize}
+
+\subparagraph{2.2. Véc-tơ độ chệch toàn bộ nơ-ron ở lớp $\mathbf{b}^{[l]}$\\}
+Tương tự, gom toàn bộ $n_l$ giá trị độ chệch vô hướng $b_j^{[l]}$ của tất cả nơ-ron ở lớp $l$ ($j = 1, \dots, n_l$) thành một \textbf{véc-tơ cột}:
+$$\mathbf{b}^{[l]} = \begin{bmatrix} b_1^{[l]} \\ b_2^{[l]} \\ \vdots \\ b_{n_l}^{[l]} \end{bmatrix} \in \mathbb{R}^{n_l \times 1}$$
+
+\paragraph{3. Quá trình Lan truyền tiến cho một Lô Dữ liệu.\\}
+Tương tự với lan truyền tiến cho một mẫu dữ liệu, ta nhân $\mathbf{W}^{[l]}$ trực tiếp với $\mathbf{A}^{[l-1]}$ bằng phép nhân ma trận. Đối với bộ tham số độ chệch, véc-tơ $\mathbf{b}^{[l]}$ được mở rộng kích thước thành ma trận $n_l \times m$ thông qua tích ngoài với véc-tơ đơn vị $\mathbf{1}_m^{\top} = \begin{bmatrix} 1 & \cdots & 1 \end{bmatrix}$:
+
+\begin{equation}
+\mathbf{b}^{[l]} \otimes \mathbf{1}_m = \mathbf{b}^{[l]}\mathbf{1}_m^{\top} = \begin{bmatrix} b_1^{[l]} \\ b_2^{[l]} \\ \vdots \\ b_{n_l}^{[l]} \end{bmatrix} \begin{bmatrix} 1 & 1 & \cdots & 1 \end{bmatrix} = \begin{bmatrix} b_1^{[l]} & b_1^{[l]} & \cdots & b_1^{[l]} \\ b_2^{[l]} & b_2^{[l]} & \cdots & b_2^{[l]} \\ \vdots & \vdots & \ddots & \vdots \\ b_{n_l}^{[l]} & b_{n_l}^{[l]} & \cdots & b_{n_l}^{[l]} \end{bmatrix} \in \mathbb{R}^{n_l \times m}.
+\label{eq:outer_product_bias}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\otimes$: Ký hiệu phép tích ngoài, biến hai véc-tơ $\mathbf{u} \in \mathbb{R}^{m}$ và $\mathbf{v} \in \mathbb{R}^n$ thành một ma trận kích thước $m \times n$.
+    \begin{equation}
+        \mathbf{u} \otimes \mathbf{v} = \mathbf{u}\mathbf{v}^\top = 
+        \begin{bmatrix}
+            u_1 \\
+            u_2 \\
+            \dots \\
+            u_m
+        \end{bmatrix}
+        \begin{bmatrix}
+            v_1 & v_2 & \dots & v_n
+        \end{bmatrix}
+        = 
+        \begin{bmatrix}
+            u_1 v_1 & u_1 v_2 & \dots & u_1 v_n \\
+            u_2 v_1 & u_2 v_2 & \dots & u_2 v_n \\
+            \vdots  & \vdots  & \ddots & \vdots  \\
+            u_m v_1 & u_m v_2 & \dots & u_m v_n
+        \end{bmatrix}.
+    \end{equation}
+
+    \item $\mathbf{b}^{[l]} \in \mathbb{R}^{n_l}$: Véc-tơ độ chệch dạng cột cho toàn bộ nơ-ron tại lớp $l$.
+    \item $\mathbf{1}_m = [1, 1, \dots, 1]^\top \in \mathbb{R}^m$: Véc-tơ cột gồm toàn số $1$, do đó $\mathbf{1}_m^\top$ là véc-tơ hàng kích thước $1 \times m$.
+\end{itemize}
+
+Ma trận tiền kích hoạt $\mathbf{Z}^{[l]}$ và ma trận kích hoạt đầu ra $\mathbf{A}^{[l]}$ của mạng cho biểu diễn theo lô dữ liệu tại lớp $l$ được xác định bởi:
+\[
+\begin{aligned}
+\mathbf{Z}^{[l]} &= \mathbf{W}^{[l]}\mathbf{A}^{[l-1]} + \mathbf{b}^{[l]}\mathbf{1}_m^{\top} \\[6pt]
+\mathbf{A}^{[l]} &= \sigma^{[l]}\left( \mathbf{Z}^{[l]} \right)
+\end{aligned}
+\]
+
+\textit{Kiểm tra tính tương thích về chiều:}
+\[
+\underbrace{\mathbf{Z}^{[l]}}_{n_l \times m} = \underbrace{\mathbf{W}^{[l]}}_{n_l \times n_{l-1}} \underbrace{\mathbf{A}^{[l-1]}}_{n_{l-1} \times m} + \underbrace{\mathbf{b}^{[l]}}_{n_l \times 1} \underbrace{\mathbf{1}_m^{\top}}_{1 \times m}
+\]
+\[
+\underbrace{\mathbf{A}^{[l]}}_{n_l \times m} = \sigma^{[l]}\left( \underbrace{\mathbf{Z}^{[l]}}_{n_l \times m} \right)
+\]
+
+\paragraph{Ví dụ tính toán cho Lan truyền Tiến theo Lô:}
+Xét mạng nơ-ron truyền thẳng 3 lớp với kiến trúc:
+\begin{itemize}
+    \item \textbf{Lớp đầu vào ($l=0$):} $n_0 = 3$ đặc trưng. Kích thước lô dữ liệu là $m = 3$ mẫu.
+    \item \textbf{Lớp ẩn 1 ($l=1$):} $n_1 = 3$ nơ-ron, hàm kích hoạt ReLU.
+    \item \textbf{Lớp ẩn 2 ($l=2$):} $n_2 = 3$ nơ-ron, hàm kích hoạt ReLU.
+    \item \textbf{Lớp đầu ra ($l=3$):} $n_3 = 1$ nơ-ron, hàm kích hoạt ReLU.
+\end{itemize}
+
+
+\paragraph{1. Khởi tạo Dữ liệu và Tham số:}
+Ma trận đầu vào $\mathbf{X} = \mathbf{A}^{[0]} \in \mathbb{R}^{3 \times 3}$:
+\begin{equation}
+\mathbf{A}^{[0]} = 
+\begin{bmatrix}
+    1 & 2 & -1 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix}
+\end{equation}
+
+Trọng số và độ chệch tại \textbf{Lớp 1}:
+\begin{equation}
+\mathbf{W}^{[1]} = 
+\begin{bmatrix}
+    1 & 0 & -1 \\
+    0 & 1 & 1 \\
+    -1 & -1 & 0
+\end{bmatrix}, 
+\quad
+\mathbf{b}^{[1]} = 
+\begin{bmatrix}
+    0 \\ -1 \\ 1
+\end{bmatrix}
+\end{equation}
+
+Trọng số và độ chệch tại \textbf{Lớp 2}:
+\begin{equation}
+\mathbf{W}^{[2]} = 
+\begin{bmatrix}
+    1 & -1 & 0 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix}, 
+\quad
+\mathbf{b}^{[2]} = 
+\begin{bmatrix}
+    1 \\ -2 \\ 0
+\end{bmatrix}
+\end{equation}
+
+Trọng số và độ chệch tại \textbf{Lớp Đầu ra (Lớp 3)}:
+\begin{equation}
+\mathbf{W}^{[3]} = 
+\begin{bmatrix}
+    1 & 2 & -1
+\end{bmatrix},
+\quad
+\mathbf{b}^{[3]} = 
+\begin{bmatrix}
+    -1
+\end{bmatrix}
+\end{equation}
+
+\paragraph{2. Quá trình lan truyền tiến.\\}
+\textbf{Tại lớp ẩn 1 ($l=1$):}
+\begin{equation}
+\mathbf{Z}^{[1]} = \mathbf{W}^{[1]}\mathbf{A}^{[0]} + \mathbf{b}^{[1]}\mathbf{1}_m^{\top}
+\end{equation}
+\begin{align*}
+\mathbf{Z}^{[1]} 
+&= 
+\begin{bmatrix}
+    1 & 0 & -1 \\
+    0 & 1 & 1 \\
+    -1 & -1 & 0
+\end{bmatrix}
+\begin{bmatrix}
+    1 & 2 & -1 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix}
++
+\begin{bmatrix}
+    0 & 0 & 0 \\
+    -1 & -1 & -1 \\
+    1 & 1 & 1
+\end{bmatrix} \\
+&= 
+\begin{bmatrix}
+    2 & 2 & -2 \\
+    -1 & 1 & 3 \\
+    -1 & -3 & -1
+\end{bmatrix}
++
+\begin{bmatrix}
+    0 & 0 & 0 \\
+    -1 & -1 & -1 \\
+    1 & 1 & 1
+\end{bmatrix}
+=
+\begin{bmatrix}
+    2 & 2 & -2 \\
+    -2 & 0 & 2 \\
+    0 & -2 & 0
+\end{bmatrix}
+\end{align*}
+
+\begin{equation}
+\mathbf{A}^{[1]} = \max(0, \mathbf{Z}^{[1]}) = 
+\begin{bmatrix}
+    2 & 2 & 0 \\
+    0 & 0 & 2 \\
+    0 & 0 & 0
+\end{bmatrix}
+\end{equation}
+
+\textbf{Tại lớp ẩn 2 ($l=2$):}
+\[
+\mathbf{Z}^{[2]} = \mathbf{W}^{[2]}\mathbf{A}^{[1]} + \mathbf{b}^{[2]}\mathbf{1}_m^{\top}
+\]
+\begin{align*}
+\mathbf{Z}^{[2]} 
+&= 
+\begin{bmatrix}
+    1 & -1 & 0 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+    2 & 2 & 0 \\
+    0 & 0 & 2 \\
+    0 & 0 & 0
+\end{bmatrix}
++
+\begin{bmatrix}
+    1 & 1 & 1 \\
+    -2 & -2 & -2 \\
+    0 & 0 & 0
+\end{bmatrix} \\
+&= 
+\begin{bmatrix}
+    2 & 2 & -2 \\
+    0 & 0 & 2 \\
+    -2 & -2 & 0
+\end{bmatrix}
++
+\begin{bmatrix}
+    1 & 1 & 1 \\
+    -2 & -2 & -2 \\
+    0 & 0 & 0
+\end{bmatrix}
+=
+\begin{bmatrix}
+    3 & 3 & -1 \\
+    -2 & -2 & 0 \\
+    -2 & -2 & 0
+\end{bmatrix}
+\end{align*}
+\[\mathbf{A}^{[2]} = \max(0, \mathbf{Z}^{[2]}) = 
+\begin{bmatrix}
+    3 & 3 & 0 \\
+    0 & 0 & 0 \\
+    0 & 0 & 0
+\end{bmatrix}\]
+\paragraph{Tại lớp đầu ra ($l=3$):}
+\[
+\mathbf{Z}^{[3]} = \mathbf{W}^{[3]}\mathbf{A}^{[2]} + \mathbf{b}^{[3]}
+\]
+\begin{align*}
+\mathbf{Z}^{[3]} 
+&= 
+\begin{bmatrix}
+    1 & 2 & -1
+\end{bmatrix}
+\begin{bmatrix}
+    3 & 3 & 0 \\
+    0 & 0 & 0 \\
+    0 & 0 & 0
+\end{bmatrix}
++
+\begin{bmatrix}
+    -1 & -1 & -1
+\end{bmatrix} \\
+&= 
+\begin{bmatrix}
+    3 & 3 & 0
+\end{bmatrix}
++
+\begin{bmatrix}
+    -1 & -1 & -1
+\end{bmatrix}
+= 
+\begin{bmatrix}
+    2 & 2 & -1
+\end{bmatrix}
+\end{align*}
+
+\[
+\hat{\mathbf{Y}} = \mathbf{A}^{[3]} = \max(0, \mathbf{Z}^{[3]}) = 
+\begin{bmatrix}
+    2 & 2 & 0
+\end{bmatrix}
+\]
+
+\paragraph{Kết luận:\\} 
+Mạng nơ-ron đã biến đổi toàn bộ thông tin của lô 3 mẫu dữ liệu thành các dự đoán:
+\begin{itemize}
+    \item Dự đoán cho mẫu 1: $\hat{y}^{(1)} = 2$
+    \item Dự đoán cho mẫu 2: $\hat{y}^{(2)} = 2$
+    \item Dự đoán cho mẫu 3: $\hat{y}^{(3)} = 0$
+\end{itemize}
+\begin{lstlisting}[caption={Mã Python lan truyền tiến cho một lô dữ liệu gồm 3 mẫu.}, language=Python]
+import numpy as np
+
+# --- ReLU ---
+def relu(z: np.ndarray) -> np.ndarray:
+    return np.maximum(0, z)
+
+# --- Khoi tao du lieu ---
+A0 = np.array([
+    [1, 2, -1],
+    [0, 1, 2],
+    [-1, 0, 1]
+])
+
+# Tham so Lop 1
+W1 = np.array([[1, 0, -1], [0, 1, 1], [-1, -1, 0]])
+b1 = np.array([[0], [-1], [1]])
+
+# Tham so Lop 2
+W2 = np.array([[1, -1, 0], [0, 1, 2], [-1, 0, 1]])
+b2 = np.array([[1], [-2], [0]])
+
+# Tham so Lop 3 (Dau ra)
+W3 = np.array([[1, 2, -1]])
+b3 = np.array([[-1]])
+
+def batch_forward():
+    # Lop 1
+    Z1 = W1 @ A0 + b1 
+    A1 = relu(Z1)
+
+    # Lop 2
+    Z2 = W2 @ A1 + b2
+    A2 = relu(Z2)
+
+    # Lop 3
+    Z3 = W3 @ A2 + b3
+    Y_hat = relu(Z3)
+
+    # In ket qua
+    print("A_1:\n", A1)
+    print("A_2:\n", A2)
+    print("Y_hat:\n", Y_hat)
+
+# Chay thu vi du
+if __name__ == "__main__":
+    batch_forward()
+\end{lstlisting}

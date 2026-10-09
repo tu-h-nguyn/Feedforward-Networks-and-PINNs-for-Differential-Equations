@@ -1,0 +1,226 @@
+\documentclass[11pt,a4paper]{article}
+
+% 1. FONT & NGÔN NGỮ
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[vietnamese]{babel}
+\usepackage{indentfirst}
+
+% 2. TOÁN HỌC & ĐỊNH LÝ
+
+\usepackage{amsmath,amssymb,amsfonts}
+\newtheorem{definition}{Định nghĩa}[section]
+\newtheorem{theorem}{Định lý}[section]
+\newtheorem{proof}{Chứng minh}[section]
+\newtheorem{proposition}{Mệnh đề}[section]
+\newtheorem{remark}[theorem]{Nhận xét}
+\newtheorem{example}{Ví dụ}[section]
+\newtheorem{corollary}[theorem]{Hệ quả}
+\newtheorem{note}{Lưu ý}[section]
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{natbib}
+
+% Việt hóa tên môi trường thuật toán
+\floatname{algorithm}{Thuật toán}
+
+% --- Khai báo Đầu vào / Đầu ra ---
+\algrenewcommand\algorithmicrequire{\textbf{Đầu vào:}}
+\algrenewcommand\algorithmicensure{\textbf{Kết quả:}}
+\algrenewcommand\algorithmicreturn{\textbf{Trả về}}
+
+% --- Cấu trúc rẽ nhánh (Điều kiện) ---
+\algrenewcommand\algorithmicif{\textbf{nếu}}
+\algrenewcommand\algorithmicthen{\textbf{thì}}
+\algrenewcommand\algorithmicelse{\textbf{ngược lại}}
+
+% --- Cấu trúc vòng lặp ---
+\algrenewcommand\algorithmicfor{\textbf{với}}
+\algrenewcommand\algorithmicwhile{\textbf{trong khi}}
+\algrenewcommand\algorithmicdo{\textbf{thực hiện}}
+\algrenewcommand\algorithmicrepeat{\textbf{lặp}}
+\algrenewcommand\algorithmicuntil{\textbf{cho đến khi}}
+
+% --- Kết thúc block ---
+\algrenewcommand\algorithmicend{\textbf{kết thúc}}
+
+% 3. ĐỒ HỌA & VẼ HÌNH (THÊM CHO TRANG BÌA)
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows.meta, positioning}
+
+% 4. CĂN LỀ & BỐ CỤC TRANG
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.25}
+\usepackage{float}
+\usepackage{booktabs} % Dùng cho \toprule, \midrule, \bottomrule
+\usepackage{tabularx} % Dùng để tự động căn chỉnh độ rộng cột vừa với trang
+\usepackage{array}    % Dùng để tùy chỉnh căn lề trong cộtV
+\usepackage{enumitem}
+\setlist[itemize]{leftmargin=*, itemsep=0.4em, topsep=0.3em}
+
+% 5. MÀU SẮC & ĐỊNH DẠNG TIÊU ĐỀ
+\usepackage{xcolor}
+% Màu tiêu đề và liên kết
+\definecolor{titleblue}{RGB}{35, 75, 135}
+\definecolor{linkblue}{RGB}{0, 102, 204}
+% Màu cho Code (Listings)
+\definecolor{codegreen}{RGB}{0,120,0}
+\definecolor{codegray}{RGB}{110,110,110}
+\definecolor{codeblue}{RGB}{0,0,180}
+\definecolor{backcolour}{RGB}{248,248,248}
+% Màu cho Tcolorbox
+\definecolor{XanhTieuDe}{RGB}{0, 102, 34} 
+\definecolor{XanhNen}{RGB}{234, 245, 238}
+
+\usepackage{titlesec}
+\titleformat{\section}{\normalfont\Large\bfseries\color{titleblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalfont\large\bfseries\color{titleblue}}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\normalfont\large\bfseries\color{titleblue}}{\thesubsubsection.}{0.5em}{}
+
+% 6. CẤU HÌNH HIỂN THỊ CODE (LISTINGS)
+\usepackage{listings}
+\renewcommand{\lstlistingname}{Đoạn mã}
+\usepackage{xcolor}
+
+% Định nghĩa màu sắc (Bắt buộc để không bị lỗi Missing color name)
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Định nghĩa style cho Matlab
+\lstdefinestyle{MatlabStyle}{
+    language=Matlab,
+    backgroundcolor=\color{backcolour},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{blue}\bfseries,
+    commentstyle=\color{codegreen}\itshape,
+    stringstyle=\color{red},
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    stepnumber=1,
+    numbersep=10pt,
+    frame=single,
+    framesep=8pt,
+    rulecolor=\color{gray},
+    breaklines=true,
+    breakatwhitespace=true,
+    showstringspaces=false,
+    tabsize=4,
+    columns=fullflexible,
+    keepspaces=true
+}
+
+% Kích hoạt style vừa tạo làm mặc định (tùy chọn)
+\lstset{style=MatlabStyle}
+
+% 7. MÔI TRƯỜNG ĐÓNG KHUNG
+% \usepackage[most]{tcolorbox}
+% \usepackage{pgfkeys}
+
+% \newtcolorbox{baitapbox}[1]{
+%     colback=blue!5, 
+%     colframe=blue!60!black, 
+%     coltitle=white, 
+%     fonttitle=\bfseries, 
+%     enhanced, 
+%     title=#1
+% }
+
+% \newtcolorbox{vidu}[1]{
+%     colback=XanhNen, 
+%     colframe=XanhTieuDe, 
+%     coltitle=white,
+%     fonttitle=\bfseries, 
+%     title=#1
+% }
+
+% \newtcolorbox{bode}[1]{ 
+%     enhanced, 
+%     colback=red!5!white, 
+%     colframe=red, 
+%     boxrule=0.5pt,
+%     arc=2mm,
+%     title={#1}, 
+%     fonttitle=\bfseries, 
+%     colbacktitle=red,
+%     attach boxed title to top left={xshift=5mm, yshift=-2.5mm}, 
+%     boxed title style={arc=3mm, size=small}
+% }
+
+\newcommand{\ngaythangnam}[3]{ngày #1 tháng #2 năm #3}
+
+% 9. HYPERREF
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=titleblue,
+    filecolor=magenta,      
+    urlcolor=linkblue,
+}
+
+\usepackage[backend=biber, style=ieee, language=english]{biblatex}
+\addbibresource{references.bib} 
+
+\begin{document}
+
+% ----------------- TRANG BÌA -------
+\begin{titlepage}
+    \begin{center}
+        {\Large ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH}\\
+        {\Large TRƯỜNG ĐẠI HỌC KHOA HỌC TỰ NHIÊN}\\
+        {\Large KHOA TOÁN - TIN HỌC}\\[1.5cm]
+        
+        \includegraphics[scale=0.27]{Images/04_Images/logo.jpg}\\[2cm]
+        
+        { \Large \bfseries MẠNG NƠ-RON TRUYỀN THẲNG\\[2cm] }
+        
+        {\large SEMINAR GIẢI TÍCH SỐ}\\[0.5cm]
+        
+        \begin{tabular}{l l}
+            \textbf{GIẢNG VIÊN HƯỚNG DẪN:} & TS. Ông Thanh Hải \\
+            \textbf{SINH VIÊN THỰC HIỆN:} & Nguyễn Hoàng Tú
+        \end{tabular}
+        
+        \begin{tikzpicture}[remember picture, overlay]
+            \draw[line width = 2pt] ($(current page.north west) + (2cm,-2cm)$) rectangle ($(current page.south east) + (-1.5cm,2cm)$);
+        \end{tikzpicture}
+        
+        \vfill
+        
+        TP. Hồ Chí Minh, \ngaythangnam{08}{10}{2026}
+        
+    \end{center}
+\end{titlepage}
+% -----------------------------------
+\tableofcontents
+\newpage 
+\input{Papers/Paper_4/4_1}
+\input{Papers/Paper_4/4_2}
+\input{Papers/Paper_4/4_3.1}
+\input{Papers/Paper_4/4_3.2}
+\input{Papers/Paper_4/4_3.3}
+\input{Papers/Paper_4/4_3.4}
+\input{Papers/Paper_4/4_4}
+\input{Papers/Paper_4/4_6.1}
+
+\input{Papers/Paper_4/4_6.2}
+
+\input{Papers/Paper_4/4_6.4}
+
+\input{Papers/4_7.1}
+\input{Papers/4_7.2}
+\input{Papers/4_7.3}
+\input{Papers/4_7.4}
+
+% \input{Papers/4_6.2}
+
+\input{Papers/4_8.1}
+\input{Papers/4_8.2}
+
+% \input{Papers/5_1.1}
+\printbibliography
+\end{document}

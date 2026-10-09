@@ -1,0 +1,422 @@
+% =====================================================================
+% lbfgs.tex -- Mục "Thuật toán L-BFGS" (XeLaTeX). Chèn vào luận văn: \input{lbfgs}
+%
+% Gói cần có trong phần mở đầu của luận văn:
+%   amsmath, amssymb, amsthm, mathtools, algorithm, algpseudocode
+% Môi trường cần có (nếu chưa định nghĩa):
+%   \newtheorem{proposition}{Mệnh đề}[chapter]
+%   \newtheorem{theorem}{Định lý}[chapter]
+%   \theoremstyle{definition}\newtheorem{example}{Ví dụ}[chapter]
+%   \renewcommand{\proofname}{Chứng minh}
+% Quy ước ký hiệu: chỉ số lần lặp là t; độ dài bước là \eta_t (để không
+% trùng với tốc độ học \alpha của mục Adam); số cặp lưu trữ là \tau (để
+% không trùng với kích thước lô nhỏ m); \|\cdot\| là chuẩn Euclid.
+% Gradient được viết tường minh là \nabla J(\theta_t), vì ở mục Adam
+% \mathbf{g}_t là gradient tại \theta_{t-1}.
+
+\section{Thuật toán L-BFGS}
+\label{sec:lbfgs}
+
+Adam chỉ dùng gradient và một thang đo riêng cho từng thành phần, nên không nắm được tương tác giữa các tham số. Phương pháp Newton dùng ma trận Hessian $\nabla^2J$ để nắm được tương tác đó, nhưng với $p$ tham số, việc lưu ma trận Hessian cần $O(p^2)$ bộ nhớ và việc giải hệ tuyến tính $\nabla^2J\,\mathbf{p}=-\nabla J$ cần $O(p^3)$ phép tính. Các phương pháp tựa Newton tránh chi phí này bằng cách xây dựng xấp xỉ của ma trận Hessian (hoặc của nghịch đảo nó) chỉ từ các gradient đã tính. L-BFGS là biến thể chỉ lưu $\tau$ cặp vectơ gần nhất thay cho một ma trận $p\times p$, nên chỉ cần $O(\tau p)$ bộ nhớ. Khác với Adam, L-BFGS giả thiết hàm mất mát và gradient được tính tất định (trên toàn bộ dữ liệu hoặc trên một tập điểm cố định), vì thuật toán dựa vào hiệu của các gradient và vào tìm kiếm theo đường thẳng.
+
+%---------------------------------------------------------------------
+\subsection{Mô hình bậc hai và phương trình cát tuyến}
+%---------------------------------------------------------------------
+
+Tại $\boldsymbol{\theta}_t$, ta xấp xỉ $J$ bằng mô hình bậc hai
+\begin{equation}\label{eq:lb-model}
+  \mathcal{M}_t(\mathbf{p})=J(\boldsymbol{\theta}_t)+\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}+\tfrac{1}{2}\,\mathbf{p}^{\top}\mathbf{B}_t\,\mathbf{p},
+\end{equation}
+với $\mathbf{B}_t\in\mathbb{R}^{p\times p}$ đối xứng. Nếu $\mathbf{B}_t$ xác định dương thì $\mathcal{M}_t$ là hàm lồi chặt, và điểm cực tiểu duy nhất của nó là nghiệm của $\nabla\mathcal{M}_t(\mathbf{p})=\nabla J(\boldsymbol{\theta}_t)+\mathbf{B}_t\mathbf{p}=\mathbf{0}$, tức là
+\begin{equation}\label{eq:lb-direction}
+  \mathbf{p}_t=-\mathbf{B}_t^{-1}\nabla J(\boldsymbol{\theta}_t)=-\mathbf{H}_t\,\nabla J(\boldsymbol{\theta}_t),
+  \qquad \mathbf{H}_t:=\mathbf{B}_t^{-1}.
+\end{equation}
+Phương pháp Newton chọn $\mathbf{B}_t=\nabla^2J(\boldsymbol{\theta}_t)$. Phương pháp tựa Newton thay nó bằng một ma trận được cập nhật từ $\mathbf{B}_t$ sang $\mathbf{B}_{t+1}$ chỉ bằng hai vectơ
+\begin{equation}\label{eq:lb-sy}
+  \mathbf{s}_t=\boldsymbol{\theta}_{t+1}-\boldsymbol{\theta}_t,
+  \qquad
+  \mathbf{y}_t=\nabla J(\boldsymbol{\theta}_{t+1})-\nabla J(\boldsymbol{\theta}_t).
+\end{equation}
+Nếu $J$ khả vi liên tục hai lần, áp dụng định lý cơ bản của giải tích cho hàm $u\mapsto\nabla J(\boldsymbol{\theta}_t+u\,\mathbf{s}_t)$ trên $[0,1]$ ta được
+\begin{equation}\label{eq:lb-avg}
+  \mathbf{y}_t=\int_0^1\nabla^2J(\boldsymbol{\theta}_t+u\,\mathbf{s}_t)\,\mathbf{s}_t\,du=\bar{\mathbf{G}}_t\,\mathbf{s}_t,
+  \qquad
+  \bar{\mathbf{G}}_t:=\int_0^1\nabla^2J(\boldsymbol{\theta}_t+u\,\mathbf{s}_t)\,du .
+\end{equation}
+Vậy $\mathbf{y}_t$ bằng tích của $\mathbf{s}_t$ với một ma trận Hessian trung bình dọc đoạn $[\boldsymbol{\theta}_t,\boldsymbol{\theta}_{t+1}]$. Vì thế ta đòi hỏi xấp xỉ mới phản ánh đúng tính chất này, gọi là phương trình cát tuyến:
+\begin{equation}\label{eq:lb-secant}
+  \mathbf{B}_{t+1}\mathbf{s}_t=\mathbf{y}_t,
+  \qquad\text{tương đương}\qquad
+  \mathbf{H}_{t+1}\mathbf{y}_t=\mathbf{s}_t .
+\end{equation}
+
+Trong đó:
+\begin{itemize}
+  \item $\boldsymbol{\theta}_t\in\mathbb{R}^{p}$ là vectơ tham số tại lần lặp $t$; $J$ là hàm mất mát trên toàn bộ dữ liệu như ở \eqref{eq:adam-J}.
+  \item $\mathbf{B}_t$ là xấp xỉ của ma trận Hessian $\nabla^2J(\boldsymbol{\theta}_t)$; $\mathbf{H}_t=\mathbf{B}_t^{-1}$ là xấp xỉ của nghịch đảo của nó.
+  \item $\mathbf{p}_t$ là hướng tìm kiếm; $\mathbf{s}_t$ là độ dịch chuyển của tham số; $\mathbf{y}_t$ là độ thay đổi của gradient.
+  \item $\bar{\mathbf{G}}_t$ là ma trận Hessian trung bình dọc đoạn nối hai lần lặp liên tiếp.
+\end{itemize}
+
+\begin{proposition}[điều kiện độ cong]\label{prop:lb-curv}
+Giả sử $\mathbf{s}_t\neq\mathbf{0}$.
+\begin{enumerate}
+  \item[(a)] Nếu tồn tại ma trận đối xứng xác định dương $\mathbf{B}_{t+1}$ thỏa \eqref{eq:lb-secant} thì $\mathbf{s}_t^{\top}\mathbf{y}_t>0$.
+  \item[(b)] Nếu $\mathbf{z}^{\top}\nabla^2J(\boldsymbol{\theta})\,\mathbf{z}\ge\lambda_0\|\mathbf{z}\|^2$ với mọi $\boldsymbol{\theta},\mathbf{z}$ và một hằng số $\lambda_0>0$ (hàm lồi mạnh) thì $\mathbf{s}_t^{\top}\mathbf{y}_t\ge\lambda_0\|\mathbf{s}_t\|^2>0$.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(a) Từ \eqref{eq:lb-secant}, $\mathbf{s}_t^{\top}\mathbf{y}_t=\mathbf{s}_t^{\top}\mathbf{B}_{t+1}\mathbf{s}_t>0$ vì $\mathbf{B}_{t+1}$ xác định dương và $\mathbf{s}_t\ne\mathbf{0}$.
+
+(b) Từ \eqref{eq:lb-avg},
+\begin{equation*}  \mathbf{s}_t^{\top}\mathbf{y}_t=\int_0^1\mathbf{s}_t^{\top}\nabla^2J(\boldsymbol{\theta}_t+u\,\mathbf{s}_t)\,\mathbf{s}_t\,du\ \ge\ \lambda_0\|\mathbf{s}_t\|^2. 
+\end{equation*}
+\end{proof}
+
+Với hàm mất mát của mạng nơ-ron, giả thiết lồi mạnh ở (b) không đúng, nên điều kiện $\mathbf{s}_t^{\top}\mathbf{y}_t>0$ phải được bảo đảm bằng cách chọn độ dài bước (xem mục về điều kiện Wolfe).
+
+\subsection{Cập nhật BFGS}
+Khi $\mathbf{y}_t^{\top}\mathbf{s}_t>0$, đặt
+\begin{equation}\label{eq:lb-rhoV}
+  \rho_t=\frac{1}{\mathbf{y}_t^{\top}\mathbf{s}_t},
+  \qquad
+  \mathbf{V}_t=\mathbf{I}-\rho_t\,\mathbf{y}_t\mathbf{s}_t^{\top}.
+\end{equation}
+Cập nhật BFGS cho nghịch đảo của ma trận Hessian là
+\begin{equation}\label{eq:lb-bfgs}
+  \mathbf{H}_{t+1}=\big(\mathbf{I}-\rho_t\mathbf{s}_t\mathbf{y}_t^{\top}\big)\,\mathbf{H}_t\,\big(\mathbf{I}-\rho_t\mathbf{y}_t\mathbf{s}_t^{\top}\big)+\rho_t\mathbf{s}_t\mathbf{s}_t^{\top}
+  =\mathbf{V}_t^{\top}\mathbf{H}_t\mathbf{V}_t+\rho_t\mathbf{s}_t\mathbf{s}_t^{\top}.
+\end{equation}
+Theo Nocedal và Wright (2006, mục 6.1), đây là nghiệm duy nhất của bài toán tìm ma trận đối xứng gần $\mathbf{H}_t$ nhất, theo một chuẩn Frobenius có trọng số, trong số các ma trận thỏa phương trình cát tuyến $\mathbf{H}\mathbf{y}_t=\mathbf{s}_t$. Ta không chứng minh tính tối ưu này mà kiểm chứng các tính chất cần dùng ở dưới.
+
+Trong đó $\rho_t>0$ là đại lượng vô hướng, $\mathbf{I}$ là ma trận đơn vị cấp $p$, và $\mathbf{y}_t\mathbf{s}_t^{\top}$, $\mathbf{s}_t\mathbf{y}_t^{\top}$, $\mathbf{s}_t\mathbf{s}_t^{\top}$ là các ma trận hạng một.
+
+\begin{proposition}\label{prop:lb-bfgs}
+Giả sử $\mathbf{H}_t$ đối xứng xác định dương và $\mathbf{s}_t^{\top}\mathbf{y}_t>0$. Khi đó $\mathbf{H}_{t+1}$ xác định bởi \eqref{eq:lb-bfgs}
+\begin{enumerate}
+  \item[(a)] đối xứng;
+  \item[(b)] thỏa phương trình cát tuyến $\mathbf{H}_{t+1}\mathbf{y}_t=\mathbf{s}_t$;
+  \item[(c)] xác định dương.
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(a) Chuyển vị của $\mathbf{V}_t^{\top}\mathbf{H}_t\mathbf{V}_t$ là chính nó vì $\mathbf{H}_t$ đối xứng; $\mathbf{s}_t\mathbf{s}_t^{\top}$ cũng đối xứng.
+
+(b) Do $\rho_t\,\mathbf{s}_t^{\top}\mathbf{y}_t=1$,
+\begin{equation*}
+  \mathbf{V}_t\mathbf{y}_t=\mathbf{y}_t-\rho_t\mathbf{y}_t(\mathbf{s}_t^{\top}\mathbf{y}_t)=\mathbf{0}.
+\end{equation*}
+Suy ra $\mathbf{H}_{t+1}\mathbf{y}_t=\mathbf{V}_t^{\top}\mathbf{H}_t(\mathbf{V}_t\mathbf{y}_t)+\rho_t\mathbf{s}_t(\mathbf{s}_t^{\top}\mathbf{y}_t)=\mathbf{0}+\mathbf{s}_t=\mathbf{s}_t$.
+
+(c) Với $\mathbf{z}\ne\mathbf{0}$ bất kỳ,
+\begin{equation*}
+  \mathbf{z}^{\top}\mathbf{H}_{t+1}\mathbf{z}=(\mathbf{V}_t\mathbf{z})^{\top}\mathbf{H}_t(\mathbf{V}_t\mathbf{z})+\rho_t(\mathbf{s}_t^{\top}\mathbf{z})^2\ \ge\ 0,
+\end{equation*}
+vì $\mathbf{H}_t$ xác định dương và $\rho_t>0$. Nếu tổng bằng $0$ thì cả hai số hạng bằng $0$: số hạng thứ nhất bằng $0$ kéo theo $\mathbf{V}_t\mathbf{z}=\mathbf{0}$, số hạng thứ hai bằng $0$ cho $\mathbf{s}_t^{\top}\mathbf{z}=0$. Nhưng $\mathbf{V}_t\mathbf{z}=\mathbf{z}-\rho_t\mathbf{y}_t(\mathbf{s}_t^{\top}\mathbf{z})=\mathbf{z}$, nên $\mathbf{z}=\mathbf{0}$, mâu thuẫn. Vậy $\mathbf{z}^{\top}\mathbf{H}_{t+1}\mathbf{z}>0$.
+\end{proof}
+
+\paragraph{Bổ sung: dạng cập nhật cho $\mathbf{B}_t$.}
+Nghịch đảo của \eqref{eq:lb-bfgs} (theo công thức Sherman--\allowbreak Morrison--\allowbreak Woodbury) là
+\begin{equation*}
+  \mathbf{B}_{t+1}=\mathbf{B}_t-\frac{\mathbf{B}_t\mathbf{s}_t\mathbf{s}_t^{\top}\mathbf{B}_t}{\mathbf{s}_t^{\top}\mathbf{B}_t\mathbf{s}_t}+\frac{\mathbf{y}_t\mathbf{y}_t^{\top}}{\mathbf{y}_t^{\top}\mathbf{s}_t}.
+\end{equation*}
+BFGS đầy đủ lưu và cập nhật ma trận đặc $\mathbf{H}_t$, nên cần $O(p^2)$ bộ nhớ và $O(p^2)$ phép tính mỗi lần lặp; với mạng có hàng chục nghìn tham số trở lên, chi phí này khó chấp nhận. L-BFGS giải quyết điều đó như sau.
+
+%---------------------------------------------------------------------
+\subsection{Phương pháp L-BFGS và đệ quy hai vòng lặp}
+%---------------------------------------------------------------------
+
+Cố định số nguyên $\tau\ge1$ (số cặp lưu trữ). Ở lần lặp $t$, ta chọn một ma trận khởi tạo $\mathbf{H}_t^{0}$ đối xứng xác định dương, rồi áp dụng liên tiếp công thức \eqref{eq:lb-bfgs} với $\tau$ cặp gần nhất $(\mathbf{s}_j,\mathbf{y}_j)$, $j=t-\tau,\dots,t-1$:
+\begin{equation}\label{eq:lb-K}
+  \mathbf{K}_{t-\tau}=\mathbf{H}_t^{0},\qquad
+  \mathbf{K}_{j+1}=\mathbf{V}_j^{\top}\mathbf{K}_j\mathbf{V}_j+\rho_j\mathbf{s}_j\mathbf{s}_j^{\top},\quad j=t-\tau,\dots,t-1,
+  \qquad
+  \mathbf{H}_t:=\mathbf{K}_t .
+\end{equation}
+(Ở các lần lặp $t<\tau$, chỉ có $t$ cặp, và ta hiểu $t-\tau$ là $0$.) Thay lần lượt, ta được dạng khai triển
+\begin{equation}\label{eq:lb-expand}
+  \begin{aligned}
+  \mathbf{H}_t&=\big(\mathbf{V}_{t-1}^{\top}\cdots\mathbf{V}_{t-\tau}^{\top}\big)\mathbf{H}_t^{0}\big(\mathbf{V}_{t-\tau}\cdots\mathbf{V}_{t-1}\big)\\
+  &\quad+\sum_{j=t-\tau}^{t-1}\rho_j\big(\mathbf{V}_{t-1}^{\top}\cdots\mathbf{V}_{j+1}^{\top}\big)\mathbf{s}_j\mathbf{s}_j^{\top}\big(\mathbf{V}_{j+1}\cdots\mathbf{V}_{t-1}\big),
+  \end{aligned}
+\end{equation}
+trong đó tích rỗng (khi $j=t-1$) là ma trận đơn vị. Đẳng thức này suy ra bằng quy nạp theo số cặp được áp dụng. Ma trận $\mathbf{H}_t$ không bao giờ được lập tường minh; ta chỉ cần tích $\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)$, được tính bằng đệ quy hai vòng lặp sau.
+
+\begin{proposition}[đệ quy hai vòng lặp]\label{prop:lb-twoloop}
+Cho $\mathbf{g}\in\mathbb{R}^{p}$. Xét các phép tính
+\begin{align*}
+  &\mathbf{q}\leftarrow\mathbf{g};\quad\text{với }j=t-1,t-2,\dots,t-\tau:\quad \sigma_j\leftarrow\rho_j\mathbf{s}_j^{\top}\mathbf{q},\quad \mathbf{q}\leftarrow\mathbf{q}-\sigma_j\mathbf{y}_j;\\
+  &\mathbf{r}\leftarrow\mathbf{H}_t^{0}\mathbf{q};\quad\text{với }j=t-\tau,\dots,t-1:\quad \omega\leftarrow\rho_j\mathbf{y}_j^{\top}\mathbf{r},\quad \mathbf{r}\leftarrow\mathbf{r}+\mathbf{s}_j(\sigma_j-\omega).
+\end{align*}
+Khi kết thúc, $\mathbf{r}=\mathbf{H}_t\mathbf{g}$ với $\mathbf{H}_t$ xác định bởi \eqref{eq:lb-K}.
+\end{proposition}
+
+\begin{proof}
+Đặt $\mathbf{q}_t=\mathbf{g}$ và gọi $\mathbf{q}_j$ là giá trị của $\mathbf{q}$ sau khi xử lý chỉ số $j$ ở vòng thứ nhất. Khi đó $\sigma_j=\rho_j\mathbf{s}_j^{\top}\mathbf{q}_{j+1}$ và
+\begin{equation*}
+  \mathbf{q}_j=\mathbf{q}_{j+1}-\sigma_j\mathbf{y}_j=\big(\mathbf{I}-\rho_j\mathbf{y}_j\mathbf{s}_j^{\top}\big)\mathbf{q}_{j+1}=\mathbf{V}_j\mathbf{q}_{j+1}.
+\end{equation*}
+Gọi $\mathbf{r}_j$ là giá trị của $\mathbf{r}$ sau khi xử lý chỉ số $j$ ở vòng thứ hai, với $\mathbf{r}_{t-\tau-1}:=\mathbf{H}_t^{0}\mathbf{q}_{t-\tau}$ là giá trị ban đầu. Ta chứng minh bằng quy nạp rằng $\mathbf{r}_j=\mathbf{K}_{j+1}\mathbf{q}_{j+1}$.
+
+Với $j=t-\tau-1$: $\mathbf{r}_{t-\tau-1}=\mathbf{K}_{t-\tau}\mathbf{q}_{t-\tau}$, đúng theo \eqref{eq:lb-K}.
+
+Giả sử $\mathbf{r}_{j-1}=\mathbf{K}_{j}\mathbf{q}_{j}$. Theo bước cập nhật của vòng thứ hai,
+\begin{equation*}
+  \mathbf{r}_j=\mathbf{r}_{j-1}-\rho_j\mathbf{s}_j\mathbf{y}_j^{\top}\mathbf{r}_{j-1}+\sigma_j\mathbf{s}_j=\mathbf{V}_j^{\top}\mathbf{r}_{j-1}+\sigma_j\mathbf{s}_j .
+\end{equation*}
+Thay $\mathbf{r}_{j-1}=\mathbf{K}_j\mathbf{q}_j=\mathbf{K}_j\mathbf{V}_j\mathbf{q}_{j+1}$ và $\sigma_j=\rho_j\mathbf{s}_j^{\top}\mathbf{q}_{j+1}$:
+\begin{equation*}
+  \mathbf{r}_j=\mathbf{V}_j^{\top}\mathbf{K}_j\mathbf{V}_j\mathbf{q}_{j+1}+\rho_j\mathbf{s}_j\mathbf{s}_j^{\top}\mathbf{q}_{j+1}=\mathbf{K}_{j+1}\mathbf{q}_{j+1}.
+\end{equation*}
+Với $j=t-1$ ta được $\mathbf{r}_{t-1}=\mathbf{K}_t\mathbf{q}_t=\mathbf{H}_t\mathbf{g}$.
+\end{proof}
+
+Mỗi vòng lặp gồm $\tau$ tích vô hướng và $\tau$ phép cộng vectơ có hệ số, nên đệ quy tốn $O(\tau p)$ phép tính (khi $\mathbf{H}_t^{0}$ là ma trận đường chéo) và cần lưu $2\tau$ vectơ, tức $2\tau p$ số, cùng $\tau$ số $\rho_j$. Thực hành cho thấy giá trị $\tau$ nhỏ, khoảng từ $3$ đến $20$, thường đủ (Nocedal và Wright, 2006, mục 7.2).
+
+\paragraph{Chọn ma trận khởi tạo.}
+Ta chọn $\mathbf{H}_t^{0}=\gamma_t\mathbf{I}$ với
+\begin{equation}\label{eq:lb-gamma}
+  \gamma_t=\frac{\mathbf{s}_{t-1}^{\top}\mathbf{y}_{t-1}}{\mathbf{y}_{t-1}^{\top}\mathbf{y}_{t-1}},
+\end{equation}
+và $\gamma_0=1$ ở lần lặp đầu tiên, khi chưa có cặp nào. Vì $\mathbf{s}_{t-1}^{\top}\mathbf{y}_{t-1}>0$ nên $\mathbf{y}_{t-1}\neq\mathbf{0}$ và $\gamma_t>0$, do đó $\mathbf{H}_t^{0}$ xác định dương. Mệnh đề sau cho biết lý do của lựa chọn này.
+
+\begin{proposition}\label{prop:lb-gamma}
+Giả sử $\mathbf{y}=\mathbf{G}\mathbf{s}$ với $\mathbf{s}\ne\mathbf{0}$ và $\mathbf{G}$ đối xứng có mọi giá trị riêng thuộc $[\lambda_0,\Lambda]\subset(0,\infty)$. Khi đó
+\begin{equation*}
+  \frac{1}{\Lambda}\ \le\ \frac{\mathbf{s}^{\top}\mathbf{y}}{\mathbf{y}^{\top}\mathbf{y}}\ \le\ \frac{1}{\lambda_0}.
+\end{equation*}
+\end{proposition}
+
+\begin{proof}
+Gọi $\lambda_i$ và $\mathbf{u}_i$ là các giá trị riêng và vectơ riêng trực chuẩn của $\mathbf{G}$, và viết $\mathbf{s}=\sum_ic_i\mathbf{u}_i$. Khi đó $\mathbf{s}^{\top}\mathbf{y}=\sum_i\lambda_ic_i^2$ và $\mathbf{y}^{\top}\mathbf{y}=\sum_i\lambda_i^2c_i^2$. Đặt $w_i=\lambda_i^2c_i^2/\sum_k\lambda_k^2c_k^2$, các trọng số không âm có tổng bằng $1$. Khi đó
+\begin{equation*}
+  \frac{\mathbf{s}^{\top}\mathbf{y}}{\mathbf{y}^{\top}\mathbf{y}}=\frac{\sum_i\lambda_ic_i^2}{\sum_i\lambda_i^2c_i^2}=\sum_iw_i\,\frac{1}{\lambda_i},
+\end{equation*}
+là trung bình có trọng số của các số $1/\lambda_i\in[1/\Lambda,1/\lambda_0]$, nên nằm trong đoạn đó.
+\end{proof}
+
+Theo \eqref{eq:lb-avg}, $\mathbf{y}_{t-1}=\bar{\mathbf{G}}_{t-1}\mathbf{s}_{t-1}$, và nếu $J$ lồi mạnh với phổ Hessian trong $[\lambda_0,\Lambda]$ thì $\bar{\mathbf{G}}_{t-1}$ cũng đối xứng với phổ trong $[\lambda_0,\Lambda]$. Do đó $\gamma_t\in[1/\Lambda,1/\lambda_0]$: $\mathbf{H}_t^{0}$ có cùng cấp độ lớn với nghịch đảo của ma trận Hessian dọc hướng vừa đi, nhờ đó bước $\eta=1$ thường được chấp nhận ngay.
+
+%---------------------------------------------------------------------
+\subsection{Tìm kiếm theo đường thẳng và điều kiện Wolfe}
+%---------------------------------------------------------------------
+
+Cho hướng $\mathbf{p}_t$ và đặt $\psi(\eta)=J(\boldsymbol{\theta}_t+\eta\,\mathbf{p}_t)$ với $\eta>0$, nên $\psi'(0)=\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t$. Độ dài bước $\eta_t$ được chọn sao cho thỏa hai điều kiện Wolfe, với $0<c_1<c_2<1$:
+\begin{align}
+  J(\boldsymbol{\theta}_t+\eta\,\mathbf{p}_t)&\le J(\boldsymbol{\theta}_t)+c_1\,\eta\,\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t, \tag{W1}\label{eq:lb-W1}\\
+  \nabla J(\boldsymbol{\theta}_t+\eta\,\mathbf{p}_t)^{\top}\mathbf{p}_t&\ge c_2\,\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t. \tag{W2}\label{eq:lb-W2}
+\end{align}
+Điều kiện giảm đủ \eqref{eq:lb-W1} đòi hỏi $J$ giảm ít nhất tỉ lệ với $\eta$ và với độ dốc ban đầu. Điều kiện độ cong \eqref{eq:lb-W2} đòi hỏi độ dốc $\psi'(\eta)$ tại điểm mới đã bớt âm đi so với $\psi'(0)$, nhờ đó loại các bước quá ngắn. Với phương pháp tựa Newton thường chọn $c_1=10^{-4}$ và $c_2=0{,}9$.
+
+\begin{proposition}\label{prop:lb-wolfe-curv}
+Nếu $\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t<0$ và $\eta>0$ thỏa \eqref{eq:lb-W2}, thì với $\mathbf{s}_t=\eta\,\mathbf{p}_t$,
+\begin{equation*}
+  \mathbf{s}_t^{\top}\mathbf{y}_t\ \ge\ (c_2-1)\,\eta\,\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t\ >\ 0 .
+\end{equation*}
+\end{proposition}
+
+\begin{proof}
+Từ \eqref{eq:lb-sy},
+\begin{equation*}
+  \mathbf{s}_t^{\top}\mathbf{y}_t=\eta\,\big(\nabla J(\boldsymbol{\theta}_{t+1})-\nabla J(\boldsymbol{\theta}_t)\big)^{\top}\mathbf{p}_t .
+\end{equation*}
+Theo \eqref{eq:lb-W2}, $\nabla J(\boldsymbol{\theta}_{t+1})^{\top}\mathbf{p}_t\ge c_2\,\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t$, nên
+\begin{equation*}
+  \mathbf{s}_t^{\top}\mathbf{y}_t\ge\eta\,(c_2-1)\,\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t .
+\end{equation*}
+Vế phải dương vì $c_2<1$, $\eta>0$ và $\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t<0$.
+\end{proof}
+
+Mệnh đề trên cho thấy điều kiện Wolfe bảo đảm $\mathbf{s}_t^{\top}\mathbf{y}_t>0$ cho mọi hàm, kể cả hàm không lồi. Mệnh đề dưới đây cho biết bước thỏa Wolfe luôn tồn tại.
+
+\begin{proposition}\label{prop:lb-wolfe-exist}
+Giả sử $J$ khả vi liên tục, $\mathbf{p}_t$ thỏa $\psi'(0)<0$ và $\psi$ bị chặn dưới trên $(0,\infty)$. Khi đó tồn tại một khoảng các giá trị $\eta>0$ thỏa đồng thời \eqref{eq:lb-W1} và \eqref{eq:lb-W2}.
+\end{proposition}
+
+\begin{proof}
+Đặt $\ell(\eta)=\psi(0)+c_1\eta\,\psi'(0)$. Vì $\psi'(0)<0$ và $c_1<1$ nên $\psi(\eta)-\ell(\eta)=(1-c_1)\psi'(0)\,\eta+o(\eta)<0$ với $\eta>0$ đủ nhỏ. Mặt khác $\ell(\eta)\to-\infty$ còn $\psi$ bị chặn dưới, nên $\psi(\eta)-\ell(\eta)\to+\infty$. Do tính liên tục, tập $\{\eta>0:\psi(\eta)=\ell(\eta)\}$ khác rỗng; gọi $\eta'$ là phần tử nhỏ nhất của nó. Khi đó $\psi<\ell$ trên $(0,\eta')$.
+
+Theo định lý giá trị trung bình, tồn tại $\eta''\in(0,\eta')$ sao cho $\psi(\eta')-\psi(0)=\eta'\psi'(\eta'')$. Vì $\psi(\eta')-\psi(0)=c_1\eta'\psi'(0)$, ta có $\psi'(\eta'')=c_1\psi'(0)$. Do $c_1<c_2$ và $\psi'(0)<0$ nên $c_1\psi'(0)>c_2\psi'(0)$, tức $\psi'(\eta'')>c_2\psi'(0)$, và $\psi(\eta'')<\ell(\eta'')$ vì $\eta''<\eta'$. Vậy $\eta''$ thỏa chặt cả hai điều kiện; do $\psi$ và $\psi'$ liên tục nên chúng vẫn thỏa trong một lân cận của $\eta''$.
+\end{proof}
+
+\begin{proposition}\label{prop:lb-descent}
+Giả sử với mọi $t$, $\eta_t$ thỏa \eqref{eq:lb-W2}, $\mathbf{H}_t^{0}=\gamma_t\mathbf{I}$ với $\gamma_t$ cho bởi \eqref{eq:lb-gamma} (và $\gamma_0>0$), và $\nabla J(\boldsymbol{\theta}_t)\neq\mathbf{0}$. Khi đó $\mathbf{H}_t$ xác định dương và $\mathbf{p}_t=-\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)$ là hướng giảm, tức $\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t<0$.
+\end{proposition}
+
+\begin{proof}
+Theo Mệnh đề~\ref{prop:lb-wolfe-curv}, mọi cặp được dùng thỏa $\mathbf{s}_j^{\top}\mathbf{y}_j>0$ (suy ra bằng quy nạp theo $t$, vì hướng $\mathbf{p}_j$ là hướng giảm). Ma trận $\mathbf{K}_{t-\tau}=\gamma_t\mathbf{I}$ xác định dương; áp dụng Mệnh đề~\ref{prop:lb-bfgs}(c) lần lượt cho $j=t-\tau,\dots,t-1$ ta được $\mathbf{K}_t=\mathbf{H}_t$ xác định dương. Khi đó $\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t=-\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)<0$.
+\end{proof}
+
+\paragraph{Bổ sung: lưu ý khi cài đặt.}
+(i) Mỗi điểm thử trong tìm kiếm theo đường thẳng đòi hỏi tính cả $J$ và $\nabla J$, tức một lần lan truyền xuôi và một lần lan truyền ngược trên toàn bộ dữ liệu; chi phí này thường lớn hơn $O(\tau p)$ của đệ quy hai vòng lặp. (ii) Ở lần lặp đầu tiên chưa có thông tin độ cong nên $\mathbf{p}_0=-\nabla J(\boldsymbol{\theta}_0)$ không có thang đo hợp lý; thường dùng bước thử ban đầu nhỏ, chẳng hạn $\eta=1/\|\nabla J(\boldsymbol{\theta}_0)\|$, còn từ $t\ge1$ thử $\eta=1$ trước. (iii) Nếu tìm kiếm theo đường thẳng chỉ bảo đảm \eqref{eq:lb-W1} (ví dụ lùi bước), Mệnh đề~\ref{prop:lb-wolfe-curv} không áp dụng được và $\mathbf{s}_t^{\top}\mathbf{y}_t$ có thể không dương; khi đó cách làm thông dụng là bỏ qua cặp $(\mathbf{s}_t,\mathbf{y}_t)$ vừa tính.
+
+
+\paragraph{Thuật toán}
+
+\begin{algorithm}[H]
+\caption{Đệ quy hai vòng lặp tính $\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)$}\label{alg:lb-twoloop}
+\begin{algorithmic}[1]
+\Require $\nabla J(\boldsymbol{\theta}_t)$; các cặp $(\mathbf{s}_j,\mathbf{y}_j)$ và $\rho_j$ với $j=t-\tau,\dots,t-1$; ma trận $\mathbf{H}_t^{0}$
+\State $\mathbf{q}\gets\nabla J(\boldsymbol{\theta}_t)$
+\For{$j=t-1,t-2,\dots,t-\tau$}
+  \State $\sigma_j\gets\rho_j\,\mathbf{s}_j^{\top}\mathbf{q}$
+  \State $\mathbf{q}\gets\mathbf{q}-\sigma_j\,\mathbf{y}_j$
+\EndFor
+\State $\mathbf{r}\gets\mathbf{H}_t^{0}\mathbf{q}$
+\For{$j=t-\tau,\dots,t-1$}
+  \State $\omega\gets\rho_j\,\mathbf{y}_j^{\top}\mathbf{r}$
+  \State $\mathbf{r}\gets\mathbf{r}+\mathbf{s}_j\,(\sigma_j-\omega)$
+\EndFor
+\State \Return $\mathbf{r}$ \hfill $(=\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t))$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{L-BFGS}\label{alg:lbfgs}
+\begin{algorithmic}[1]
+\Require Tham số khởi tạo $\boldsymbol{\theta}_0$; số cặp lưu trữ $\tau$; ngưỡng dừng $\vartheta>0$; hằng số $0<c_1<c_2<1$
+\State $t\gets0$
+\While{$\|\nabla J(\boldsymbol{\theta}_t)\|>\vartheta$}
+  \State Chọn $\mathbf{H}_t^{0}=\gamma_t\mathbf{I}$ theo \eqref{eq:lb-gamma} (với $\gamma_0=1$)
+  \State $\mathbf{p}_t\gets-\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)$ bằng Thuật toán~\ref{alg:lb-twoloop}
+  \State Tìm $\eta_t>0$ thỏa \eqref{eq:lb-W1} và \eqref{eq:lb-W2}, thử $\eta=1$ trước
+  \State $\boldsymbol{\theta}_{t+1}\gets\boldsymbol{\theta}_t+\eta_t\mathbf{p}_t$
+  \State $\mathbf{s}_t\gets\boldsymbol{\theta}_{t+1}-\boldsymbol{\theta}_t$, \quad $\mathbf{y}_t\gets\nabla J(\boldsymbol{\theta}_{t+1})-\nabla J(\boldsymbol{\theta}_t)$, \quad $\rho_t\gets1/(\mathbf{y}_t^{\top}\mathbf{s}_t)$
+  \If{$t\ge\tau$}
+    \State Xóa cặp $(\mathbf{s}_{t-\tau},\mathbf{y}_{t-\tau})$ khỏi bộ nhớ
+  \EndIf
+  \State Lưu cặp $(\mathbf{s}_t,\mathbf{y}_t)$ và $\rho_t$; \quad $t\gets t+1$
+\EndWhile
+\State \Return $\boldsymbol{\theta}_t$
+\end{algorithmic}
+\end{algorithm}
+
+%---------------------------------------------------------------------
+\subsection{Ví dụ số}
+%---------------------------------------------------------------------
+
+\begin{example}\label{ex:lb-quad}
+Xét $J(\boldsymbol{\theta})=\tfrac12(\theta_1^2+4\theta_2^2)$ với $\nabla J(\boldsymbol{\theta})=(\theta_1,\,4\theta_2)^{\top}$, ma trận Hessian $\mathbf{A}=\operatorname{diag}(1,4)$ và $\mathbf{A}^{-1}=\operatorname{diag}(1;\,0{,}25)$. Lấy $\boldsymbol{\theta}_0=(2,1)^{\top}$ và $\tau=1$.
+
+\emph{Lần lặp $t=0$.} $\nabla J(\boldsymbol{\theta}_0)=(2,4)^{\top}$, $\mathbf{H}_0^{0}=\mathbf{I}$ nên $\mathbf{p}_0=(-2,-4)^{\top}$, và $\nabla J(\boldsymbol{\theta}_0)^{\top}\mathbf{p}_0=-20$. Chọn $\eta_0=\tfrac14$: $\boldsymbol{\theta}_1=(1{,}5;\,0)^{\top}$, $J(\boldsymbol{\theta}_1)=1{,}125\le J(\boldsymbol{\theta}_0)+c_1\eta_0(-20)$, nên \eqref{eq:lb-W1} thỏa; $\nabla J(\boldsymbol{\theta}_1)=(1{,}5;\,0)^{\top}$ nên $\nabla J(\boldsymbol{\theta}_1)^{\top}\mathbf{p}_0=-3\ge0{,}9\cdot(-20)$, nên \eqref{eq:lb-W2} thỏa. Ta có
+\begin{equation*}
+  \mathbf{s}_0=(-0{,}5;\,-1)^{\top},\quad
+  \mathbf{y}_0=(-0{,}5;\,-4)^{\top}=\mathbf{A}\mathbf{s}_0,\quad
+  \mathbf{s}_0^{\top}\mathbf{y}_0=\tfrac{17}{4},\quad
+  \mathbf{y}_0^{\top}\mathbf{y}_0=\tfrac{65}{4},
+\end{equation*}
+suy ra $\rho_0=\tfrac{4}{17}\approx0{,}2353$ và $\gamma_1=\tfrac{17}{65}\approx0{,}2615\in[\tfrac14,1]=[1/\Lambda,1/\lambda_0]$, đúng với Mệnh đề~\ref{prop:lb-gamma}.
+
+\emph{Lần lặp $t=1$.} Ta có $\mathbf{V}_0=\mathbf{I}-\rho_0\mathbf{y}_0\mathbf{s}_0^{\top}=\tfrac{1}{17}\begin{pmatrix}16&-2\\-8&1\end{pmatrix}$ và
+\begin{equation*}
+  \mathbf{H}_1=\mathbf{V}_0^{\top}(\gamma_1\mathbf{I})\mathbf{V}_0+\rho_0\mathbf{s}_0\mathbf{s}_0^{\top}\approx\begin{pmatrix}0{,}3484&0{,}0814\\0{,}0814&0{,}2398\end{pmatrix}.
+\end{equation*}
+Kiểm tra: $\mathbf{H}_1\mathbf{y}_0=(-0{,}5;\,-1)^{\top}=\mathbf{s}_0$ (phương trình cát tuyến), và các giá trị riêng $\approx0{,}1962$ và $0{,}3920$ đều dương. Đệ quy hai vòng lặp với $\mathbf{g}=\nabla J(\boldsymbol{\theta}_1)=(1{,}5;\,0)^{\top}$ cho
+\begin{align*}
+  \sigma_0&=\rho_0\mathbf{s}_0^{\top}\mathbf{g}\approx-0{,}1765, & \mathbf{q}&=\mathbf{g}-\sigma_0\mathbf{y}_0\approx(1{,}4118;\,-0{,}7059)^{\top},\\
+  \mathbf{r}&=\gamma_1\mathbf{q}\approx(0{,}3692;\,-0{,}1846)^{\top}, & \omega&=\rho_0\mathbf{y}_0^{\top}\mathbf{r}\approx0{,}1303,
+\end{align*}
+và cuối cùng
+\begin{equation*}
+  \mathbf{r}\leftarrow\mathbf{r}+\mathbf{s}_0(\sigma_0-\omega)\approx(0{,}5226;\,0{,}1222)^{\top},
+  \qquad
+  \mathbf{p}_1=-\mathbf{r}\approx(-0{,}5226;\,-0{,}1222)^{\top},
+\end{equation*}
+trùng với $-\mathbf{H}_1\nabla J(\boldsymbol{\theta}_1)$ tính trực tiếp từ ma trận.
+
+\emph{Bước $\eta_1=1$.} Ta có $\boldsymbol{\theta}_2\approx(0{,}9774;\,-0{,}1222)^{\top}$ và $J(\boldsymbol{\theta}_2)\approx0{,}5075<1{,}125$. Hơn nữa
+\begin{equation*}
+  \nabla J(\boldsymbol{\theta}_1)^{\top}\mathbf{p}_1\approx-0{,}7839,
+  \qquad
+  \nabla J(\boldsymbol{\theta}_2)^{\top}\mathbf{p}_1\approx-0{,}4511\ \ge\ 0{,}9\cdot(-0{,}7839)\approx-0{,}7055,
+\end{equation*}
+nên \eqref{eq:lb-W2} thỏa; \eqref{eq:lb-W1} cũng thỏa vì $J(\boldsymbol{\theta}_2)\approx0{,}5075\le1{,}125+10^{-4}\cdot(-0{,}7839)$.
+
+Lưu ý $\mathbf{H}_1\neq\mathbf{A}^{-1}$: ma trận $\mathbf{H}_1$ chỉ chứa thông tin độ cong dọc hướng $\mathbf{s}_0$ đã đi qua, phần còn lại do $\gamma_1\mathbf{I}$ quyết định.
+\end{example}
+
+%---------------------------------------------------------------------
+\subsection{Hội tụ}
+%---------------------------------------------------------------------
+
+Ta trình bày một kết quả tổng quát chứng minh được cho hàm không lồi, rồi nêu kết quả cho trường hợp lồi mạnh. Đặt $\cos\varphi_t=-\dfrac{\nabla J(\boldsymbol{\theta}_t)^{\top}\mathbf{p}_t}{\|\nabla J(\boldsymbol{\theta}_t)\|\,\|\mathbf{p}_t\|}$, là côsin của góc giữa $\mathbf{p}_t$ và hướng giảm nhanh nhất $-\nabla J(\boldsymbol{\theta}_t)$.
+
+\begin{theorem}[Zoutendijk]\label{thm:lb-zoutendijk}
+Giả sử $J$ bị chặn dưới, khả vi liên tục, và $\nabla J$ liên tục Lipschitz với hằng số $L$ trên một tập mở lồi $\mathcal{N}$ chứa tập mức $\{\boldsymbol{\theta}:J(\boldsymbol{\theta})\le J(\boldsymbol{\theta}_0)\}$. Nếu với mọi $t$, $\mathbf{p}_t$ là hướng giảm và $\eta_t$ thỏa \eqref{eq:lb-W1}, \eqref{eq:lb-W2}, thì
+\begin{equation*}
+  \sum_{t\ge0}\cos^2\varphi_t\,\|\nabla J(\boldsymbol{\theta}_t)\|^2<\infty .
+\end{equation*}
+\end{theorem}
+
+\begin{proof}
+Đặt $\nabla J_t:=\nabla J(\boldsymbol{\theta}_t)$. Theo \eqref{eq:lb-W1} và hướng giảm, $J(\boldsymbol{\theta}_{t+1})\le J(\boldsymbol{\theta}_t)\le J(\boldsymbol{\theta}_0)$, nên $\boldsymbol{\theta}_t$ và $\boldsymbol{\theta}_{t+1}$ thuộc $\mathcal{N}$, và đoạn nối chúng nằm trong $\mathcal{N}$ (do $\mathcal{N}$ lồi). Từ \eqref{eq:lb-W2} và tính Lipschitz,
+\begin{equation*}
+  (c_2-1)\,\nabla J_t^{\top}\mathbf{p}_t\le\big(\nabla J_{t+1}-\nabla J_t\big)^{\top}\mathbf{p}_t\le L\,\eta_t\|\mathbf{p}_t\|^2,
+\end{equation*}
+suy ra
+\begin{equation*}
+  \eta_t\ge\frac{1-c_2}{L}\cdot\frac{-\nabla J_t^{\top}\mathbf{p}_t}{\|\mathbf{p}_t\|^2}.
+\end{equation*}
+Thay vào \eqref{eq:lb-W1}:
+\begin{align*}
+  J(\boldsymbol{\theta}_{t+1})&\le J(\boldsymbol{\theta}_t)+c_1\eta_t\,\nabla J_t^{\top}\mathbf{p}_t\\
+  &\le J(\boldsymbol{\theta}_t)-\frac{c_1(1-c_2)}{L}\cdot\frac{(\nabla J_t^{\top}\mathbf{p}_t)^2}{\|\mathbf{p}_t\|^2}\\
+  &=J(\boldsymbol{\theta}_t)-c\,\cos^2\varphi_t\,\|\nabla J_t\|^2,
+\end{align*}
+với $c=c_1(1-c_2)/L>0$. Cộng các bất đẳng thức này theo $t=0,\dots,T$ rồi dùng $J$ bị chặn dưới: $c\sum_{t=0}^{T}\cos^2\varphi_t\|\nabla J_t\|^2\le J(\boldsymbol{\theta}_0)-\inf J$ với mọi $T$.
+\end{proof}
+
+\begin{proposition}\label{prop:lb-stationary}
+Trong điều kiện của Định lý~\ref{thm:lb-zoutendijk}, nếu $\mathbf{p}_t=-\mathbf{H}_t\nabla J(\boldsymbol{\theta}_t)$ với $\mathbf{H}_t$ đối xứng xác định dương có số điều kiện $\kappa(\mathbf{H}_t)\le\bar\kappa$ với mọi $t$, thì $\cos\varphi_t\ge1/\bar\kappa$ và $\nabla J(\boldsymbol{\theta}_t)\to\mathbf{0}$.
+\end{proposition}
+
+\begin{proof}
+Gọi $\lambda_{\min},\lambda_{\max}$ là giá trị riêng nhỏ nhất và lớn nhất của $\mathbf{H}_t$, $\mathbf{g}=\nabla J(\boldsymbol{\theta}_t)$. Khi đó $\mathbf{g}^{\top}\mathbf{H}_t\mathbf{g}\ge\lambda_{\min}\|\mathbf{g}\|^2$ và $\|\mathbf{H}_t\mathbf{g}\|\le\lambda_{\max}\|\mathbf{g}\|$, nên
+\begin{equation*}
+  \cos\varphi_t=\frac{\mathbf{g}^{\top}\mathbf{H}_t\mathbf{g}}{\|\mathbf{g}\|\,\|\mathbf{H}_t\mathbf{g}\|}\ge\frac{\lambda_{\min}}{\lambda_{\max}}\ge\frac{1}{\bar\kappa}.
+\end{equation*}
+Do đó $\sum_t\|\nabla J(\boldsymbol{\theta}_t)\|^2\le\bar\kappa^2\sum_t\cos^2\varphi_t\|\nabla J(\boldsymbol{\theta}_t)\|^2<\infty$ theo Định lý~\ref{thm:lb-zoutendijk}, suy ra $\|\nabla J(\boldsymbol{\theta}_t)\|\to0$.
+\end{proof}
+
+Nói cách khác, L-BFGS hội tụ về điểm dừng nếu các ma trận $\mathbf{H}_t$ có số điều kiện bị chặn đều. Với hàm không lồi, tính chất này không được bảo đảm bởi bản thân thuật toán; ngược lại, có ví dụ không lồi mà BFGS với tìm kiếm Wolfe không hội tụ về điểm dừng (Dai, 2002).
+
+\begin{theorem}[trường hợp lồi mạnh; Nocedal và Wright, 2006, Định lý 7.5]\label{thm:lb-linear}
+Giả sử $J$ khả vi liên tục hai lần, tập mức $\mathcal{L}=\{\boldsymbol{\theta}:J(\boldsymbol{\theta})\le J(\boldsymbol{\theta}_0)\}$ lồi, và tồn tại $0<\lambda_0\le\Lambda$ sao cho $\lambda_0\|\mathbf{z}\|^2\le\mathbf{z}^{\top}\nabla^2J(\boldsymbol{\theta})\,\mathbf{z}\le\Lambda\|\mathbf{z}\|^2$ với mọi $\boldsymbol{\theta}\in\mathcal{L}$, $\mathbf{z}\in\mathbb{R}^{p}$. Khi đó L-BFGS (Thuật toán~\ref{alg:lbfgs}) hội tụ về điểm cực tiểu duy nhất $\boldsymbol{\theta}^{*}$ của $J$, và tồn tại $r\in[0,1)$ sao cho
+\begin{equation*}
+  J(\boldsymbol{\theta}_t)-J(\boldsymbol{\theta}^{*})\le r^{t}\,\big(J(\boldsymbol{\theta}_0)-J(\boldsymbol{\theta}^{*})\big).
+\end{equation*}
+\end{theorem}
+
+Ta thuật lại định lý này mà không chứng minh. Các ma trận khởi tạo $\mathbf{H}_t^{0}=\gamma_t\mathbf{I}$ ở trên có phổ nằm trong đoạn cố định $[1/\Lambda,1/\lambda_0]$ (xem sau Mệnh đề~\ref{prop:lb-gamma}). Định lý chỉ bảo đảm hội tụ tuyến tính với hằng số $r$ có thể gần $1$; nó không áp dụng cho hàm mất mát của mạng nơ-ron vì hàm đó không lồi.
+
+%---------------------------------------------------------------------
+\subsection{So sánh và lưu ý khi áp dụng}
+%---------------------------------------------------------------------
+
+\begin{table}[t]
+\centering
+\small
+\caption{So sánh phương pháp Newton, BFGS và L-BFGS trên $p$ tham số (chi phí tính $J$ và $\nabla J$ không được tính vào).}\label{tab:lb-compare}
+\begin{tabular}{|p{0.2\textwidth}|p{0.2\textwidth}|p{0.18\textwidth}|p{0.2\textwidth}|}
+\hline
+ & Newton & BFGS & L-BFGS \\ \hline
+Thông tin dùng & ma trận Hessian $\nabla^2J$ & gradient & gradient \\ \hline
+Bộ nhớ & $O(p^2)$ & $O(p^2)$ & $O(\tau p)$ \\ \hline
+Phép tính mỗi lần lặp & $O(p^3)$ và tính ma trận Hessian & $O(p^2)$ & $O(\tau p)$ \\ \hline
+Hội tụ cục bộ (với giả thiết chuẩn) & bậc hai & siêu tuyến tính & tuyến tính (chứng minh được ở trường hợp lồi mạnh) \\ \hline
+\end{tabular}
+\end{table}
+
+Các tốc độ hội tụ ở Bảng~\ref{tab:lb-compare} là kết quả trong Nocedal và Wright (2006, chương 3, 6 và 7) với các giả thiết chuẩn (hàm trơn, ma trận Hessian xác định dương và liên tục Lipschitz gần điểm cực tiểu).
+
+\paragraph{Bổ sung: so sánh với Adam.}
+Adam là phương pháp bậc nhất, dùng được với lô nhỏ ngẫu nhiên, mỗi lần lặp tốn $O(p)$ phép tính và không cần tìm kiếm theo đường thẳng. L-BFGS khai thác thông tin độ cong qua các cặp $(\mathbf{s}_j,\mathbf{y}_j)$, nhưng đòi hỏi $J$ và $\nabla J$ tất định, và mỗi lần lặp có thể cần nhiều lần tính $J$ và $\nabla J$ trong tìm kiếm theo đường thẳng. Nếu các điểm huấn luyện được lấy mẫu lại ở mỗi lần lặp thì hàm $J$ thay đổi giữa các lần tính, các điều kiện \eqref{eq:lb-W1}, \eqref{eq:lb-W2} và điều kiện $\mathbf{s}_t^{\top}\mathbf{y}_t>0$ mất ý nghĩa. Vì vậy L-BFGS thường được dùng với dữ liệu hoặc tập điểm cố định.
+
+\paragraph{Bổ sung: về tính trơn của hàm mất mát.}
+Các kết quả trong mục này giả thiết $J$ khả vi liên tục (và khả vi liên tục hai lần ở Định lý~\ref{thm:lb-linear}). Với hàm kích hoạt không trơn như ReLU, giả thiết đó không được thỏa; đây là một lý do để dùng hàm kích hoạt trơn, chẳng hạn $\tanh$, khi hàm mất mát chứa đạo hàm của mạng như trong bài toán nghiệm xấp xỉ phương trình vi phân.
+
+\paragraph{Bổ sung: phối hợp Adam và L-BFGS.}
+Một cách làm thường gặp trong thực hành huấn luyện mạng nơ-ron cho phương trình vi phân là dùng Adam để đưa $\boldsymbol{\theta}$ đến vùng lân cận một điểm cực tiểu, rồi chuyển sang L-BFGS để tinh chỉnh. Đây là kinh nghiệm thực hành chứ không phải kết quả lý thuyết; lý do trực giác là gần điểm cực tiểu, thông tin độ cong của L-BFGS cho bước đi tốt hơn bước chỉ dựa trên gradient.

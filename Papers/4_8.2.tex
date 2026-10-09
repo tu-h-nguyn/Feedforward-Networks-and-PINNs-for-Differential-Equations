@@ -1,0 +1,740 @@
+\section{Hình học hàm mất mát và bệnh lý građien}
+\label{sec:gradient-pathology}
+
+Trong phần này, hình học hàm mất mát là hình học của ánh xạ
+$\boldsymbol{\theta}\mapsto J_N(\boldsymbol{\theta})$ trong không gian
+tham số: độ cong, các hướng ít thay đổi, các hướng biến thiên nhanh
+và quan hệ giữa các thành phần mất mát. Không đồng nhất khái niệm này
+với không gian hàm chứa nghiệm của phương trình.
+
+\subsection{Građien của tổng và sự cạnh tranh giữa các ràng buộc}
+
+Với trọng số cố định, chia \eqref{p4:eq:loss-total} cho
+$\lambda_r>0$ rồi gộp các thành phần còn lại thành $J_1,\ldots,J_M$:
+\begin{equation}
+ J(\boldsymbol{\theta})=J_r(\boldsymbol{\theta})+
+                         \sum_{j=1}^{M}\lambda_jJ_j(\boldsymbol{\theta}).
+ \label{p4:eq:compact-loss}
+\end{equation}
+Ở đây, $M$ là số nhóm dữ kiện hoặc ràng buộc, và các $\lambda_j$ đã
+được chia cho trọng số phần dư ban đầu. Phép chuẩn hóa giữ nguyên tập
+cực tiểu, nhưng đổi độ lớn građien; để giữ nguyên một bước hạ dốc còn
+phải đổi chiều dài bước tương ứng.
+
+Đặt $\mathbf{g}_r=\nabla_{\boldsymbol{\theta}}J_r$,
+$\mathbf{g}_j=\nabla_{\boldsymbol{\theta}}J_j$ và
+$\mathbf{g}=\mathbf{g}_r+\sum_j\lambda_j\mathbf{g}_j$.
+Với bước $\eta>0$, hạ dốc cập nhật
+\begin{equation}
+ \boldsymbol{\theta}^{+}=\boldsymbol{\theta}-\eta\mathbf{g}.
+ \label{p4:eq:gradient-step}
+\end{equation}
+Nếu $J_j$ khả vi, khai triển bậc nhất tại tham số hiện tại cho
+\begin{equation}
+ J_j(\boldsymbol{\theta}^{+})-J_j(\boldsymbol{\theta})
+ =-\eta\mathbf{g}_j^T\mathbf{g}+o(\eta),
+ \qquad \eta\downarrow0.
+ \label{p4:eq:individual-change}
+\end{equation}
+Do đó thành phần $J_j$ giảm với bước đủ nhỏ nếu
+$\mathbf{g}_j^T\mathbf{g}>0$, nhưng có thể tăng nếu tích vô hướng âm.
+Ngoài chênh lệch độ lớn, cần xét cả góc giữa các građien. Khi hai
+vectơ khác không, đặt
+\begin{equation}
+ c_{ij}=\frac{\mathbf{g}_i^T\mathbf{g}_j}
+                    {\|\mathbf{g}_i\|_2\|\mathbf{g}_j\|_2}\in[-1,1].
+ \label{p4:eq:cosine}
+\end{equation}
+Trong đó $\|\cdot\|_2$ là chuẩn Euclid. Giá trị $c_{ij}<0$ biểu thị
+sự đối nghịch cục bộ; cân bằng độ lớn không tự động loại bỏ sự đối nghịch.
+
+Ví dụ, tại một điểm của bài toán một tham số, nếu $g_r=10$, $g_b=-1$
+và $\lambda_b=1$, thì $g=9$. Bước hạ dốc làm
+$J_b(\theta^+)-J_b(\theta)=9\eta+o(\eta)>0$ dù tổng mất mát giảm ở
+bậc nhất với lượng $81\eta$. Đây là ví dụ về hướng cập nhật, không
+phải số liệu thực nghiệm của một mạng cụ thể.
+
+Wang và cộng sự~\cite{wang2021} nghiên cứu các mất cân bằng građien
+trong PINN và liên hệ chúng với tính cứng của động lực học huấn luyện.
+Tuy nhiên, không nên suy ra rằng phần dư luôn là thành phần trội trên
+mọi phương trình hoặc mọi cách khử thứ nguyên.
+
+Một giới hạn logic cần nhấn mạnh: vì các mất mát không âm,
+\begin{equation}
+ J_j(\boldsymbol{\theta})\leq
+                \frac{J(\boldsymbol{\theta})}{\lambda_j}.
+ \label{p4:eq:component-bound}
+\end{equation}
+Với các trọng số cố định và dương, $J\to0$ kéo theo mọi $J_j\to0$.
+Vấn đề là một giá trị tổng hữu hạn được gọi là nhỏ có thể chưa đủ
+cho ràng buộc có trọng số nhỏ, và các mất mát này vẫn chỉ kiểm tra
+tại các điểm đã lấy mẫu.
+
+\subsection{Hessian của bài toán bình phương tối thiểu}
+
+Ghép các sai lệch đã nhân hệ số $\sqrt{\lambda_j/N_j}$ thành vectơ
+$\mathbf{q}(\boldsymbol{\theta})\in\mathbb{R}^{S}$, trong đó $S$ là
+tổng số sai lệch vô hướng. Khi đó $J=\|\mathbf{q}\|_2^2$.
+Đặt ma trận Jacobi
+$\mathbf{A}=D_{\boldsymbol{\theta}}\mathbf{q}\in\mathbb{R}^{S\times P}$.
+Nếu các $q_a$ khả vi hai lần theo tham số thì
+\begin{align}
+ \nabla J&=2\mathbf{A}^{T}\mathbf{q},\label{p4:eq:ls-gradient}\\
+ \nabla^2J&=2\mathbf{A}^{T}\mathbf{A}
+          +2\sum_{a=1}^{S}q_a\nabla^2q_a.
+          \label{p4:eq:ls-hessian}
+\end{align}
+Để suy ra, lấy $\partial_{\theta_p}J=2\sum_aq_a\partial_{\theta_p}q_a$
+rồi lấy tiếp đạo hàm theo $\theta_q$. Quy tắc tích tạo hai số hạng
+$2\sum_a(\partial_{\theta_p}q_a)(\partial_{\theta_q}q_a)$ và
+$2\sum_aq_a\partial^2_{\theta_q\theta_p}q_a$, chính là hai ma trận
+ở \eqref{p4:eq:ls-hessian}.
+
+Ma trận $2\mathbf{A}^{T}\mathbf{A}$ nửa xác định dương, nhưng số hạng
+còn lại có thể không như vậy. Tại nghiệm có $\mathbf{q}=0$, số hạng
+thứ hai triệt tiêu; gần nghiệm, việc bỏ nó cần được biện minh bằng
+độ lớn của phần dư và các đạo hàm bậc hai. Tại một điểm dừng bất kỳ,
+không được mặc nhiên coi mọi trị riêng của Hessian là không âm.
+
+Hessian có thể suy biến do ma trận Jacobi thiếu hạng. Tuy nhiên,
+đối xứng hoán vị các đơn vị ẩn là đối xứng rời rạc, tự nó không sinh
+một hướng tiếp tuyến có độ cong bằng không. Hơn nữa, trị riêng bằng
+không chỉ nói về xấp xỉ bậc hai: ví dụ $J(\theta)=\theta^4$ có
+$J''(0)=0$ nhưng không hằng trên lân cận của $0$.
+
+\subsection{Dòng građien và tính cứng}
+
+Giữ trọng số cố định và xét thời gian tối ưu $s$, độc lập với thời
+gian vật lý $t$. Dòng građien là hệ
+\begin{equation}
+ \frac{\mathrm{d}\boldsymbol{\theta}}{\mathrm{d}s}
+ =-\nabla J(\boldsymbol{\theta}(s)).
+ \label{p4:eq:flow}
+\end{equation}
+Quy tắc dây chuyền cho
+\begin{equation}
+ \frac{\mathrm{d}}{\mathrm{d}s}J(\boldsymbol{\theta}(s))
+ =\nabla J^T\frac{\mathrm{d}\boldsymbol{\theta}}{\mathrm{d}s}
+ =-\|\nabla J\|_2^2\leq0.
+ \label{p4:eq:flow-energy}
+\end{equation}
+Vì vậy tổng mất mát giảm dọc dòng liên tục, dù từng thành phần có thể
+tăng như \eqref{p4:eq:individual-change} đã chỉ ra.
+
+Quanh một cực tiểu $\boldsymbol{\theta}^{*}$ của hàm $C^2$, đặt
+$\mathbf{h}=\boldsymbol{\theta}-\boldsymbol{\theta}^{*}$ và
+$\mathbf{H}=\nabla^2J(\boldsymbol{\theta}^{*})\succeq0$.
+Ta có $\nabla J(\boldsymbol{\theta}^{*}+\mathbf{h})
+=\mathbf{H}\mathbf{h}+o(\|\mathbf{h}\|)$, nên hệ tuyến tính hóa là
+$\dot{\mathbf{h}}=-\mathbf{H}\mathbf{h}$.
+Nếu $\mathbf{H}\mathbf{v}_j=\mu_j\mathbf{v}_j$ với hệ vectơ riêng
+trực chuẩn, thì hệ số $a_j=\mathbf{v}_j^T\mathbf{h}$ thỏa
+\begin{equation}
+ \dot a_j=-\mu_ja_j,
+ \qquad a_j(s)=a_j(0)\exp(-\mu_js).
+ \label{p4:eq:flow-modes}
+\end{equation}
+Trong đó, $\mu_j\geq0$ là trị riêng và $a_j$ là sai lệch theo hướng
+riêng đó. Các trị riêng dương lớn và nhỏ tạo những thang thời gian
+rất khác nhau; đó là cơ chế tính cứng trong mô hình tuyến tính hóa.
+
+Hạ dốc là lược đồ Euler hiện cho \eqref{p4:eq:flow}. Trên mỗi hướng
+có trị riêng dương, hệ tuyến tính cho
+\begin{equation}
+ a_j^{k+1}=(1-\eta\mu_j)a_j^k,
+ \qquad |1-\eta\mu_j|<1
+ \ \Longleftrightarrow\ 0<\eta<\frac{2}{\mu_j}.
+ \label{p4:eq:euler-stability}
+\end{equation}
+Nếu $\mu_{\max}>0$ và $\mu_{\min}^{+}>0$ lần lượt là trị riêng lớn
+nhất và trị riêng dương nhỏ nhất, đặt
+$\kappa_{\mathrm{eff}}=\mu_{\max}/\mu_{\min}^{+}$.
+Với $\eta=1/\mu_{\max}$, hướng chậm nhất có hệ số co
+$1-1/\kappa_{\mathrm{eff}}$; sau $k$ bước, nó bị chặn bởi
+$\exp(-k/\kappa_{\mathrm{eff}})$ lần sai lệch đầu. Vì vậy việc giảm
+sai lệch đi hệ số $\epsilon\in(0,1)$ được bảo đảm trong mô hình này
+nếu $k\geq\kappa_{\mathrm{eff}}\log(1/\epsilon)$.
+Các hướng có trị riêng bằng không không co trong hệ tuyến tính;
+động lực học thực ở những hướng đó có thể phụ thuộc số hạng bậc cao.
+Đây là phân tích cục bộ với Hessian đóng băng, không phải tốc độ hội
+tụ toàn cục của một PINN phi tuyến.
+
+\subsection{Điều chỉnh trọng số bằng thống kê građien}
+
+Wang và cộng sự đề xuất điều chỉnh các hệ số $\lambda_j$ dựa trên
+građien từng thành phần~\cite{wang2021}. Công thức dưới đây được đối
+chiếu trực tiếp với Thuật toán~1 của bản tác giả~\cite{wang2020}.
+Tại bước $k$, đặt
+\begin{equation}
+ A_k=\max_{1\leq p\leq P}|(\mathbf{g}_{r,k})_p|,
+ \qquad B_{j,k}=\frac{1}{P}\sum_{p=1}^{P}|(\mathbf{g}_{j,k})_p|.
+ \label{p4:eq:gradient-statistics}
+\end{equation}
+Trong đó, $\mathbf{g}_{r,k}=\nabla J_r(\boldsymbol{\theta}_k)$,
+$\mathbf{g}_{j,k}=\nabla J_j(\boldsymbol{\theta}_k)$; chỉ số $p$ chạy
+qua các tham số, không chạy qua các điểm không gian. Tử số là độ lớn
+thành phần lớn nhất, còn mẫu số là trung bình độ lớn các thành phần.
+Khi $B_{j,k}>0$, chọn
+\begin{equation}
+ \widehat\lambda_{j,k}=\frac{A_k}{B_{j,k}},
+ \qquad
+ \lambda_{j,k+1}=\rho\lambda_{j,k}+(1-\rho)\widehat\lambda_{j,k},
+ \quad 0<\rho<1.
+ \label{p4:eq:weight-update}
+\end{equation}
+Ở đây, $\widehat\lambda_{j,k}$ là trọng số đề xuất và $\rho$ là hệ số
+giữ lại giá trị cũ. Khi bỏ làm trơn, công thức cho đúng đẳng thức
+\begin{equation}
+ \frac{1}{P}\sum_{p=1}^{P}
+       |\widehat\lambda_{j,k}(\mathbf{g}_{j,k})_p|=A_k.
+ \label{p4:eq:balance-meaning}
+\end{equation}
+Do đó quy tắc cân bằng hai thống kê đã chọn, không cân bằng từng tọa
+độ và không bảo đảm các građien cùng hướng.
+
+Với quy ước của \eqref{p4:eq:weight-update}, $\rho$ gần một làm thay
+đổi chậm. Nếu viết $(1-\alpha)\lambda+\alpha\widehat\lambda$ thì
+$\alpha=1-\rho$. Phải giữ đúng quy ước khi so sánh các giá trị tham
+số giữa tài liệu và cài đặt. Quy tắc này điều chỉnh trọng số của các
+thành phần; chiều dài bước chung $\eta_k$ vẫn là một đại lượng khác.
+
+\paragraph{Xử lý mẫu số nhỏ.}
+Một biến thể có bảo vệ số học là
+\begin{equation}
+ \widehat\lambda_{j,k}^{\mathrm{reg}}
+ =\min\left\{\lambda_{\max},\,
+       \max\left\{\lambda_{\min},\,
+          \frac{A_k}{B_{j,k}+\varepsilon_g}\right\}\right\},
+ \label{p4:eq:regularized-weight}
+\end{equation}
+với $\varepsilon_g>0$ và $0<\lambda_{\min}\leq\lambda_{\max}<\infty$.
+Đây là phần bổ sung để cài đặt, không phải công thức nguyên dạng của
+thuật toán được dẫn. Hằng số $\varepsilon_g$ tránh chia cho không;
+hai cận hạn chế sự tăng hoặc giảm quá mức. Khi dùng biến thể này,
+đẳng thức \eqref{p4:eq:balance-meaning} chỉ còn là mục tiêu gần đúng.
+Nếu $\mathbf{g}_{j,k}=0$ nhưng $J_j>0$, tăng trọng số không tạo được
+hướng cải thiện từ một građien bằng không; cần kiểm tra tham số hóa
+hoặc điểm dừng của thành phần đó.
+
+\begin{samepage}
+\noindent\textbf{Quy trình huấn luyện có điều chỉnh trọng số.}
+\begin{enumerate}[leftmargin=*,label=\arabic*.]
+ \item Chọn $\boldsymbol{\theta}_0$, $\lambda_{j,0}>0$, chu kỳ cập nhật
+ $K\geq1$, hệ số $\rho$ và dãy bước $\eta_k>0$.
+ \item Tại bước $k\equiv0\pmod K$, tính riêng các građien tại
+ cùng $\boldsymbol{\theta}_k$, rồi dùng
+ \eqref{p4:eq:gradient-statistics}--\eqref{p4:eq:weight-update}; nếu cần,
+ thay tỉ số bằng \eqref{p4:eq:regularized-weight}. Ở các bước khác,
+ giữ $\lambda_{j,k+1}=\lambda_{j,k}$.
+ \item Giữ các trọng số mới cố định trong phép lấy đạo hàm và cập nhật
+ \[
+  \boldsymbol{\theta}_{k+1}=\boldsymbol{\theta}_k-
+  \eta_k\left[\mathbf{g}_{r,k}+\sum_{j=1}^{M}
+                         \lambda_{j,k+1}\mathbf{g}_{j,k}\right].
+ \]
+ \item Theo dõi từng $J_j$, các thống kê građien và phần dư trên tập
+ kiểm tra độc lập; không chỉ theo dõi tổng mất mát có trọng số thay đổi.
+\end{enumerate}
+\end{samepage}
+
+Trong bước thứ ba, các $\lambda_{j,k+1}$ là hệ số đã được tính, không
+phải các hàm cần lấy tiếp đạo hàm theo $\boldsymbol{\theta}$. Nếu không
+giữ cố định, ta sẽ tối ưu một biểu thức có građien chứa thêm
+\begin{equation}
+ \nabla_{\boldsymbol{\theta}}(\lambda_j(\boldsymbol{\theta})J_j)
+ =\lambda_j\nabla J_j+J_j\nabla\lambda_j,
+ \label{p4:eq:weight-derivative}
+\end{equation}
+khác với thuật toán trên. Khi dùng L-BFGS với hàm mục tiêu xác định,
+cần giữ tập điểm và trọng số cố định trong mỗi lượt giải thích hợp;
+nếu thay chúng, các cặp sai khác građien cũ có thể không còn mô tả
+cùng một hàm. Đây là yêu cầu nhất quán của cài đặt đang dùng, không
+phải khẳng định không tồn tại biến thể L-BFGS ngẫu nhiên.
+
+Cuối cùng, với $\boldsymbol{\theta}$ cố định,
+$\partial J/\partial\lambda_j=J_j\geq0$.
+Do đó cực tiểu hóa đồng thời một tổng phạt tuyến tính theo các trọng
+số không âm, mà không thêm ràng buộc hay cơ chế khác, cho phép giảm
+mục tiêu bằng cách đưa trọng số về không. Nhận xét này không loại
+trừ các phương pháp học trọng số có ràng buộc, có số hạng bổ sung hoặc
+có cấu trúc cực tiểu--cực đại.
+
+\subsection{Kiến trúc có cổng và phạm vi tác động}
+
+Một bổ sung trong công trình của Wang và cộng sự là dùng hai biểu
+diễn của đầu vào ở nhiều lớp~\cite{wang2020}. Với đầu vào cột
+$\mathbf{z}\in\mathbb{R}^{d+1}$ và bề rộng $h$, có thể viết
+\begin{align}
+ \mathbf{U}&=\sigma(\mathbf{W}_U\mathbf{z}+\mathbf{b}_U),&
+ \mathbf{V}&=\sigma(\mathbf{W}_V\mathbf{z}+\mathbf{b}_V),\notag\\
+ \mathbf{H}^{[1]}&=\sigma(\mathbf{W}_H\mathbf{z}+\mathbf{b}_H),\notag\\
+ \mathbf{Z}^{[l]}&=\sigma(\mathbf{W}_Z^{[l]}\mathbf{H}^{[l]}
+                                      +\mathbf{b}_Z^{[l]}),\notag\\
+ \mathbf{H}^{[l+1]}&=(\mathbf{1}-\mathbf{Z}^{[l]})\odot\mathbf{U}
+                             +\mathbf{Z}^{[l]}\odot\mathbf{V},
+                      &&l=1,\ldots,L_g,\notag\\
+ u_{\boldsymbol{\theta}}&=\mathbf{w}_{o}^{T}\mathbf{H}^{[L_g+1]}+b_o.
+ \label{p4:eq:gated}
+\end{align}
+Trong đó, $\mathbf{U},\mathbf{V},\mathbf{H}^{[l]},\mathbf{Z}^{[l]}
+\in\mathbb{R}^{h}$; $\mathbf{W}_U,\mathbf{W}_V,\mathbf{W}_H$
+có kích thước $h\times(d+1)$;
+$\mathbf{W}_Z^{[l]}\in\mathbb{R}^{h\times h}$;
+$\mathbf{w}_o\in\mathbb{R}^{h}$; $L_g$ là số khối trộn;
+$\odot$ là tích theo từng thành phần; $\mathbf{1}$ là vectơ toàn một.
+
+Với $\sigma=\tanh$, các tọa độ của cổng nằm trong $(-1,1)$, nên
+biểu thức trộn không nhất thiết là tổ hợp lồi. Giữ đầu vào cố định,
+đạo hàm một khối theo trạng thái trước là
+\begin{equation}
+ \frac{\partial\mathbf{H}^{[l+1]}}{\partial\mathbf{H}^{[l]}}
+ =\operatorname{diag}(\mathbf{V}-\mathbf{U})
+  \operatorname{diag}\!\left(\sigma'(\mathbf{W}_Z^{[l]}
+                     \mathbf{H}^{[l]}+\mathbf{b}_Z^{[l]})\right)
+  \mathbf{W}_Z^{[l]}.
+ \label{p4:eq:gated-jacobian}
+\end{equation}
+Ký hiệu $\operatorname{diag}(\mathbf{v})$ là ma trận đường chéo chứa
+tọa độ của $\mathbf{v}$. Công thức xuất phát từ
+$\mathbf{H}^{[l+1]}=\mathbf{U}+\mathbf{Z}^{[l]}\odot(\mathbf{V}-\mathbf{U})$
+và quy tắc dây chuyền. Các đường nối với $\mathbf{U},\mathbf{V}$
+tạo thêm đường truyền đạo hàm, nhưng tích các Jacobi vẫn có thể suy
+giảm hoặc tăng mạnh. Kiến trúc này thay đổi cả tham số hóa và lớp
+hàm biểu diễn; không có căn cứ để nói nó chỉ thay đổi tối ưu mà giữ
+nguyên hoàn toàn khả năng xấp xỉ.
+
+\section{Thiên kiến phổ và các nghiệm có thang độ dài nhỏ}
+\label{sec:spectral-bias}
+
+\subsection{Khái niệm và quy ước Fourier}
+
+Thiên kiến phổ là xu hướng một mô hình, trong một chế độ huấn luyện
+nhất định, khớp các thành phần tần số thấp sớm hơn các thành phần tần
+số cao. Rahaman và cộng sự phân tích cấu trúc Fourier của mạng ReLU
+và đưa ra các thí nghiệm về thứ tự học tần số~\cite{rahaman2019}.
+Đây không phải khẳng định mạng không thể biểu diễn tần số cao, cũng
+không phải một định lý rằng mọi kiến trúc và mọi thuật toán đều học
+theo cùng thứ tự.
+
+Với $v\in L^1(\mathbb{R}^{d})$, quy ước biến đổi Fourier là
+\begin{equation}
+ \widehat v(\boldsymbol{\xi})
+ =\int_{\mathbb{R}^{d}}v(\mathbf{x})
+                  \exp(-2\pi\mathrm{i}\boldsymbol{\xi}\cdot\mathbf{x})
+                  \,\mathrm{d}\mathbf{x}.
+ \label{p4:eq:fourier-transform}
+\end{equation}
+Trong đó, $\mathrm{i}^2=-1$ và $\boldsymbol{\xi}$ là tần số tính theo
+số chu kỳ trên một đơn vị độ dài. Trên đoạn tuần hoàn có chiều dài
+$\ell$, dùng hệ số
+\begin{equation}
+ v_k=\frac{1}{\ell}\int_0^{\ell}v(x)
+                \exp(-2\pi\mathrm{i}kx/\ell)\,\mathrm{d}x,
+ \qquad k\in\mathbb{Z}.
+ \label{p4:eq:fourier-series}
+\end{equation}
+Ở đây $k$ là chỉ số nguyên của họ hàm cơ sở; tần số không gian là
+$k/\ell$ và tần số góc là $\omega_k=2\pi k/\ell$.
+Không đồng nhất ba đại lượng này khi ước lượng bề dày lớp biên.
+
+Nếu các đạo hàm và điều kiện suy giảm ở vô cùng thích hợp, tích phân
+từng phần cho
+$\widehat{\partial_{x_j}v}=2\pi\mathrm{i}\xi_j\widehat v$.
+Trên miền hữu hạn, công thức tương ứng cần điều kiện tuần hoàn hoặc
+xử lý số hạng biên. Chẳng hạn, hàm hằng $1$ trên $(0,1)$ được mở rộng
+bằng không có biến đổi
+\begin{equation}
+ \widehat{\mathbf{1}_{(0,1)}}(\xi)
+ =\frac{1-\exp(-2\pi\mathrm{i}\xi)}{2\pi\mathrm{i}\xi},
+ \qquad \xi\ne0.
+ \label{p4:eq:window-counterexample}
+\end{equation}
+Sự cắt cụt ở biên tạo suy giảm cỡ $1/|\xi|$, dù hàm hằng ở trong
+miền là trơn vô hạn. Do đó, phát biểu về phổ phải chỉ rõ miền và cách
+xử lý biên.
+
+\subsection{Phổ của mạng ReLU: một kết quả một chiều có chứng minh}
+
+Mạng ReLU hữu hạn là hàm afin liên tục từng khúc. Trên một miền
+kích hoạt, mỗi ReLU được thay bằng ánh xạ không hoặc ánh xạ đồng
+nhất; hợp của các ánh xạ afin vẫn afin. Chia tiếp theo các mẫu
+kích hoạt cho một phân hoạch hữu hạn. Trong nhiều chiều, các miền
+này là các miền đa diện, và cấu trúc phổ phụ thuộc hướng của các mặt.
+
+Để có một định lý tường minh không che giấu các điều kiện biên, xét
+trường hợp một chiều có giá compact.
+
+\begin{proposition}[Suy giảm phổ qua bước nhảy của hệ số góc]
+Cho $v:\mathbb{R}\to\mathbb{R}$ liên tục, afin từng khúc và có giá
+compact. Gọi $\tau_1,\ldots,\tau_M$ là các điểm gãy và
+$c_j=v'(\tau_j^+)-v'(\tau_j^-)$ là bước nhảy của hệ số góc.
+Với $\xi\ne0$,
+\begin{equation}
+ \widehat v(\xi)
+ =\frac{\sum_{j=1}^{M}c_j\exp(-2\pi\mathrm{i}\xi\tau_j)}
+                         {(2\pi\mathrm{i}\xi)^2},
+ \qquad
+ |\widehat v(\xi)|\leq
+              \frac{\sum_{j=1}^{M}|c_j|}{4\pi^2\xi^2}.
+ \label{p4:eq:relu-1d}
+\end{equation}
+\end{proposition}
+Trong đó, $v'(\tau_j^\pm)$ là các giới hạn một phía của hệ số góc.
+Giá compact có nghĩa $v$ bằng không ngoài một tập bị chặn.
+
+\begin{proof}
+Đạo hàm $v'$ là hàm hằng từng khúc. Với mọi hàm thử trơn
+$\varphi$ có giá compact, tích phân từng phần trên từng khoảng cho
+\[
+ \langle v'',\varphi\rangle
+ =-\int_{\mathbb{R}}v'(x)\varphi'(x)\,\mathrm{d}x
+ =\sum_{j=1}^{M}c_j\varphi(\tau_j).
+\]
+Các đầu mút bên trong đóng góp chênh lệch hệ số góc, còn số hạng ở
+vô cùng bằng không. Vì vậy $v''=\sum_jc_j\delta_{\tau_j}$ theo nghĩa
+phân bố, với $\delta_{\tau_j}$ là khối lượng Dirac tại $\tau_j$.
+Lấy biến đổi Fourier, dùng
+$\widehat{\delta_{\tau_j}}(\xi)=\exp(-2\pi\mathrm{i}\xi\tau_j)$:
+\[
+ (2\pi\mathrm{i}\xi)^2\widehat v(\xi)
+ =\sum_jc_j\exp(-2\pi\mathrm{i}\xi\tau_j).
+\]
+Chia cho $(2\pi\mathrm{i}\xi)^2$ và dùng bất đẳng thức tam giác cho
+\eqref{p4:eq:relu-1d}.
+\end{proof}
+
+Nếu $v$ có hằng số Lipschitz $L_v$, mỗi $|c_j|\leq2L_v$.
+Với mạng ReLU có cấu trúc như \eqref{p4:eq:network}, tính chất
+Lipschitz của hợp hàm còn cho
+\begin{equation}
+ L_v\leq\prod_{l=1}^{D}\|\mathbf{W}^{[l]}\|_2,
+ \label{p4:eq:lip-network}
+\end{equation}
+trong đó chuẩn ma trận là chuẩn phổ. Thật vậy, mỗi ánh xạ afin có
+hằng số Lipschitz bằng chuẩn phổ của ma trận trọng số, ReLU có hằng
+số bằng một và các hằng số được nhân khi hợp hàm.
+Nếu mạng thuộc trường hợp có giá compact của mệnh đề và
+$|\widehat v(\xi)|\geq A>0$, thì
+\begin{equation}
+ \prod_{l=1}^{D}\|\mathbf{W}^{[l]}\|_2
+ \geq L_v\geq\frac{2\pi^2A\xi^2}{M}.
+ \label{p4:eq:spectral-parameter-cost}
+\end{equation}
+Đây là điều kiện cần có giả thiết, với $M$ là số điểm gãy thực tế;
+việc thay đổi kiến trúc cũng có thể thay đổi $M$. Nó không cho một
+cận phổ dụng chỉ theo chuẩn Euclid của toàn bộ tham số.
+
+\paragraph{Điểm cần giữ đúng khi đọc kết quả nhiều chiều.}
+Phân tích của Rahaman và cộng sự chỉ ra sự suy giảm không đẳng hướng:
+trong bối cảnh của bài báo, các hướng tổng quát có tốc độ cỡ
+$\|\boldsymbol{\xi}\|^{-(d+1)}$, nhưng ở các hướng đặc biệt liên quan
+đến pháp tuyến của mặt phân hoạch, tốc độ có thể chậm tới cỡ
+$\|\boldsymbol{\xi}\|^{-2}$~\cite[Mục~2]{rahaman2019}.
+Vì vậy không viết một cận với số mũ $d+1$ cho mọi hướng chỉ từ giả
+thiết mạng ReLU được xét trên miền bị chặn. Cũng không suy ra kết
+quả đó bằng cách khẳng định mọi đạo hàm bậc $d+1$ đều là tổng hữu hạn
+các khối lượng Dirac: đạo hàm phân bố trong nhiều chiều còn chứa các
+độ đo trên mặt và các đạo hàm của phân bố.
+
+\subsection{Tính trơn của hàm kích hoạt và giới hạn của lập luận phổ}
+
+Với $v$ tuần hoàn đủ trơn, tích phân từng phần $m$ lần trong
+\eqref{p4:eq:fourier-series}, khi các đạo hàm đến bậc $m-1$ khớp ở
+hai đầu mút, cho
+\begin{equation}
+ v_k=\frac{1}{\ell(\mathrm{i}\omega_k)^m}
+       \int_0^{\ell}v^{(m)}(x)\exp(-\mathrm{i}\omega_kx)\,\mathrm{d}x,
+ \qquad
+ |v_k|\leq\frac{\|v^{(m)}\|_{L^1(0,\ell)}}
+                              {\ell|\omega_k|^m},\quad k\ne0.
+ \label{p4:eq:smooth-decay}
+\end{equation}
+Ở đây $m$ là số lần tích phân từng phần. Tốc độ suy giảm đi kèm một
+hằng số phụ thuộc đạo hàm bậc $m$. Khi trọng số mạng tăng hoặc khi
+mạng biểu diễn một cấu trúc dốc, hằng số này cũng có thể lớn.
+Tính trơn của $\tanh$ không tự nó cho một cận phổ đồng đều theo tất
+cả bộ trọng số, đặc biệt nếu dữ kiện không tuần hoàn và bị cắt cụt
+tại biên. Do đó không chuyển nguyên số mũ và hằng số của định lý cho
+ReLU sang mạng dùng $\tanh$.
+
+Một hàm có phổ suy giảm ở tần số lớn vẫn có thể chứa một thành phần
+tần số cao đáng kể. Ví dụ, $v(x)=\sin(2\pi Kx)$ là hàm giải tích
+nhưng mang tần số $K$, với $K$ có thể lớn tùy ý. Tính trơn là thuộc
+tính của từng hàm, còn thiên kiến phổ liên quan thêm đến cách tham
+số hóa, khởi tạo và quỹ đạo huấn luyện.
+
+\subsection{Từ phổ của hàm đến động lực học huấn luyện}
+
+Để phân biệt hai vấn đề, xét trước bài toán hồi quy trên các điểm cố
+định $\mathbf{z}_1,\ldots,\mathbf{z}_M$ với
+\begin{equation}
+ J_{\mathrm{reg}}(\boldsymbol{\theta})
+ =\frac{1}{2M}\|\mathbf{F}(\boldsymbol{\theta})-\mathbf{y}\|_2^2,
+ \quad F_i(\boldsymbol{\theta})=u_{\boldsymbol{\theta}}(\mathbf{z}_i).
+ \label{p4:eq:regression}
+\end{equation}
+Trong đó, $\mathbf{y}\in\mathbb{R}^{M}$ chứa giá trị đích;
+$\mathbf{e}=\mathbf{F}-\mathbf{y}$ là vectơ sai số;
+$\mathbf{B}=D_{\boldsymbol{\theta}}\mathbf{F}$ có kích thước
+$M\times P$. Dòng građien cho
+\begin{equation}
+ \dot{\boldsymbol{\theta}}=-\frac{1}{M}\mathbf{B}^{T}\mathbf{e},
+ \qquad
+ \dot{\mathbf{e}}=\mathbf{B}\dot{\boldsymbol{\theta}}
+ =-\mathbf{K}(\boldsymbol{\theta})\mathbf{e},
+ \qquad \mathbf{K}:=\frac{1}{M}\mathbf{B}\mathbf{B}^{T}.
+ \label{p4:eq:kernel-flow}
+\end{equation}
+Ma trận $\mathbf{K}$ là ma trận của nhân tiếp tuyến nơ-ron trên tập
+điểm; nguồn gốc của cách phân tích này được trình bày trong
+\cite{jacot2018}. Đẳng thức \eqref{p4:eq:kernel-flow} là hệ quả trực
+tiếp của quy tắc dây chuyền, chưa cần giả thiết bề rộng vô hạn.
+
+Nếu trong một xấp xỉ tuyến tính hóa ta giữ
+$\mathbf{K}(\boldsymbol{\theta})\approx\mathbf{K}_0$ không đổi và
+$\mathbf{K}_0\mathbf{v}_j=\kappa_j\mathbf{v}_j$, thì
+\begin{equation}
+ \mathbf{v}_j^T\mathbf{e}(s)
+ =\exp(-\kappa_js)\,\mathbf{v}_j^T\mathbf{e}(0).
+ \label{p4:eq:kernel-modes}
+\end{equation}
+Các $\kappa_j\geq0$ là trị riêng. Hướng có trị riêng nhỏ giảm chậm;
+hướng có trị riêng bằng không không giảm trong mô hình đóng băng.
+Tuy nhiên, vectơ riêng của một ma trận nhân trên các điểm tùy ý
+không tự động là các hàm Fourier, và việc sắp trị riêng giảm dần
+không đồng nghĩa sắp tần số tăng dần.
+
+Để có kết luận theo tần số, cần thêm cấu trúc. Chẳng hạn, trên miền
+tuần hoàn, nếu toán tử nhân là tích chập
+$\mathcal{K}h(x)=\ell^{-1}\int_0^\ell K(x-y)h(y)\,\mathrm{d}y$,
+thì các hàm $\exp(\mathrm{i}\omega_kx)$ là hàm riêng. Gọi $\kappa_k$
+là trị riêng tương ứng. Với dòng $\partial_se=-\mathcal{K}e$,
+\begin{equation}
+ e_k(s)=\exp(-\kappa_ks)e_k(0).
+ \label{p4:eq:fourier-training}
+\end{equation}
+Chỉ khi các $\kappa_k$ nhỏ ở tần số cao mới suy ra những thành phần
+đó được học chậm từ công thức này. Đây là một cơ chế có điều kiện,
+không phải một tính chất đã chứng minh cho mọi mạng hữu hạn.
+
+\subsection{Tác động của toán tử vi phân lên phổ sai số}
+
+Trên miền tuần hoàn, xét toán tử tuyến tính hệ số hằng
+\begin{equation}
+ \mathcal{L}=\sum_{|\boldsymbol{\alpha}|\leq m}
+       c_{\boldsymbol{\alpha}}\partial^{\boldsymbol{\alpha}},
+ \qquad
+ p(\mathbf{z})=\sum_{|\boldsymbol{\alpha}|\leq m}
+       c_{\boldsymbol{\alpha}}\mathbf{z}^{\boldsymbol{\alpha}}.
+ \label{p4:eq:symbol}
+\end{equation}
+Trong đó, $\boldsymbol{\alpha}\in\mathbb{N}_0^d$ là đa chỉ số,
+$|\boldsymbol{\alpha}|$ là tổng các thành phần,
+$\partial^{\boldsymbol{\alpha}}$ là đạo hàm hỗn hợp và $p$ là đa thức
+biểu trưng. Nếu $\mathcal{L}u=f$, $e=v-u$, $r=\mathcal{L}v-f$,
+thì tính tuyến tính cho $r=\mathcal{L}e$. Với tần số góc
+$\boldsymbol{\omega}_k$, quy tắc đạo hàm Fourier cho
+\begin{equation}
+ r_k=p(\mathrm{i}\boldsymbol{\omega}_k)e_k.
+ \label{p4:eq:residual-symbol}
+\end{equation}
+Đây là đẳng thức chính xác trong bối cảnh đã nêu. Để thay
+$|p(\mathrm{i}\boldsymbol{\omega})|$ bằng một đại lượng tương đương
+$\|\boldsymbol{\omega}\|^m$ đồng đều theo mọi hướng, cần thêm điều
+kiện không suy biến của biểu trưng chính, chẳng hạn tính elliptic.
+Phản ví dụ là $\mathcal{L}=\partial_{x_1}$: biểu trưng bằng không
+trên các tần số $(0,\omega_2)$ dù chuẩn tần số lớn tùy ý.
+
+Với Poisson một chiều, $\mathcal{L}=-\partial_{xx}$ nên
+$r_k=\omega_k^2e_k$. Parseval cho
+\begin{equation}
+ \frac{1}{\ell}\|r\|_{L^2(0,\ell)}^2
+ =\sum_{k\in\mathbb{Z}}\omega_k^4|e_k|^2.
+ \label{p4:eq:poisson-spectral-loss}
+\end{equation}
+Ở đây, chuẩn phần dư phạt sai số ở tần số cao mạnh hơn theo lũy thừa
+bốn. Thành phần có tần số bằng không bị toán tử bỏ qua; trong bài toán Poisson tuần hoàn
+cần thêm điều kiện xác định giá trị trung bình của nghiệm.
+
+Để thấy hệ quả về điều kiện số mà không lẫn với tham số hóa mạng,
+chọn một họ hữu hạn các hàm sin trực chuẩn $\varphi_1,\ldots,\varphi_K$
+với $-\varphi_j''=\omega_j^2\varphi_j$, $\omega_j=2\pi j/\ell$.
+Viết $e=\sum_{j=1}^{K}a_j\varphi_j$. Khi đó
+\begin{equation}
+ \tfrac12\|\mathcal{L}e\|_{L^2}^2
+ =\tfrac12\sum_{j=1}^{K}\omega_j^4a_j^2,
+ \qquad
+ \nabla_{\mathbf{a}}^2J=\operatorname{diag}(\omega_1^4,\ldots,\omega_K^4).
+ \label{p4:eq:spectral-hessian}
+\end{equation}
+Số điều kiện theo các hệ số $\mathbf{a}$ bằng $K^4$.
+Nếu các hệ số phụ thuộc phi tuyến vào tham số mạng, Hessian tham số
+còn chứa Jacobi và đạo hàm bậc hai của ánh xạ đó; không được đồng
+nhất nó với ma trận đường chéo ở \eqref{p4:eq:spectral-hessian}.
+
+Tác động của đạo hàm cũng không chỉ theo một chiều bất lợi. Trong
+mô hình nhân cố định, tuần hoàn và bất biến tịnh tiến, với mất mát
+$\tfrac12\|\mathcal{L}e\|^2$ theo chuẩn đã chuẩn hóa, dòng sai số là
+$\partial_se=-\mathcal{K}\mathcal{L}^{*}\mathcal{L}e$.
+Do đó
+\begin{equation}
+ \partial_se_k=-\kappa_k|p(\mathrm{i}\boldsymbol{\omega}_k)|^2e_k.
+ \label{p4:eq:pinn-kernel-rate}
+\end{equation}
+Ký hiệu $\mathcal{L}^{*}$ là toán tử liên hợp theo tích vô hướng
+$L^2$ tuần hoàn. Công thức được suy ra vì $\mathcal{L}$ nhân mỗi hệ
+số với $p$, toán tử liên hợp nhân với liên hợp phức của $p$, còn
+$\mathcal{K}$ nhân với $\kappa_k$. Hệ số đạo hàm có thể tăng tốc độ
+giảm liên tục của một số tần số, đồng thời làm tăng trị riêng lớn
+nhất và thu hẹp bước ổn định của thuật toán rời rạc. Kết quả sau cùng
+phụ thuộc tích $\kappa_k|p|^2$, không chỉ phụ thuộc riêng độ trơn của
+mạng hoặc bậc đạo hàm.
+
+\subsection{Lớp biên, lớp chuyển tiếp và phương trình Burgers}
+
+Một ví dụ chính xác về lớp biên là
+\begin{equation}
+ -\nu u''+u'=1,\quad 0<x<1,\quad u(0)=u(1)=0,
+ \qquad
+ u_\nu(x)=x-\frac{\exp(x/\nu)-1}{\exp(1/\nu)-1}.
+ \label{p4:eq:boundary-layer}
+\end{equation}
+Để suy ra, đặt $v=u'$: phương trình $-\nu v'+v=1$ có nghiệm
+$v=1+C\exp(x/\nu)$. Tích phân và áp hai điều kiện biên cho biểu thức
+trên. Khi $\nu$ nhỏ, số hạng hiệu chỉnh gần $x=1$ có dạng
+$\exp(-(1-x)/\nu)$, nên biến thiên trên khoảng cách cỡ $\nu$.
+Không phải mọi vế phải và mọi dữ kiện biên đều tạo lớp biên không
+tầm thường; ở đây chúng đã được chỉ rõ.
+
+Với Burgers có độ nhớt trên toàn trục, một hồ sơ chuyển tiếp dừng là
+\begin{equation}
+ U(x)=-A\tanh\!\left(\frac{A(x-x_0)}{2\nu}\right),
+ \qquad A>0.
+ \label{p4:eq:burgers-profile}
+\end{equation}
+Trong đó, $A$ là biên độ hai trạng thái giới hạn và $x_0$ là tâm lớp.
+Thật vậy, phương trình $UU'-\nu U''=0$ tích phân một lần cho
+$\nu U'=(U^2-A^2)/2$ nếu $U\to\pm A$ và $U'\to0$ ở hai phía.
+Thay \eqref{p4:eq:burgers-profile} vào cho
+\[
+ U'=-\frac{A^2}{2\nu}
+       \operatorname{sech}^{2}\!\left(\frac{A(x-x_0)}{2\nu}\right),
+ \qquad \max_x|U'|=\frac{A^2}{2\nu},
+\]
+với $\operatorname{sech}z=1/\cosh z$. Nếu định nghĩa bề dày bằng tỉ
+số độ chênh hai trạng thái và độ dốc lớn nhất thì
+\begin{equation}
+ \delta:=\frac{2A}{\max|U'|}=\frac{4\nu}{A}.
+ \label{p4:eq:layer-width}
+\end{equation}
+Đây là kết quả của hồ sơ chính xác vừa xét, không phải số đo của
+bài toán giá trị đầu $u(x,0)=-\sin(\pi x)$ trên $[-1,1]$.
+Với $A=1$ và $\nu=0{,}01/\pi$, công thức cho
+$\delta\approx1{,}2732\times10^{-2}$ như một thang tham chiếu.
+Không dùng nó để gán thời điểm hoặc độ dốc cực đại cho một thí nghiệm
+chưa được thực hiện.
+
+Mối liên hệ giữa thang không gian và thang phổ có thể suy ra chính
+xác từ phép đổi biến. Với $F\in L^1(\mathbb{R})$ và
+$F_\delta(x)=F((x-x_0)/\delta)$,
+\begin{equation}
+ \widehat{F_\delta}(\xi)
+ =\delta\exp(-2\pi\mathrm{i}\xi x_0)\widehat F(\delta\xi).
+ \label{p4:eq:scaling-fourier}
+\end{equation}
+Đặt $y=(x-x_0)/\delta$ trong tích phân Fourier là đủ để thu được
+công thức. Khi $\delta$ giảm, phổ theo biến $\xi$ giãn ra theo
+$1/\delta$. Có thể áp dụng lập luận này cho đạo hàm cục bộ hóa của
+hồ sơ chuyển tiếp, vì bản thân $U$ trong \eqref{p4:eq:burgers-profile}
+không thuộc $L^1(\mathbb{R})$.
+Như vậy thang tần số cao xuất hiện một cách có cơ sở, nhưng không
+xác định một chỉ số Fourier duy nhất nếu chưa nêu chu kỳ và ngưỡng
+cắt phổ.
+
+Với nghiệm Burgers tổng quát, quan hệ phần dư--sai số còn là phi
+tuyến. Đặt $v=u+e$, với $u_t+uu_x-\nu u_{xx}=0$. Khai triển
+$(u+e)(u_x+e_x)$ cho
+\begin{equation}
+ r(v)=e_t+u e_x+u_xe+e e_x-\nu e_{xx}.
+ \label{p4:eq:burgers-error}
+\end{equation}
+Ngay cả khi bỏ số hạng bậc hai $e e_x$ để tuyến tính hóa, các hệ số
+$u,u_x$ vẫn phụ thuộc $(x,t)$. Phép biến đổi Fourier của phép nhân
+với hệ số biến thiên tạo tích chập giữa các tần số; không còn là
+phép nhân với một đa thức duy nhất như
+\eqref{p4:eq:residual-symbol}. Phân tích biểu trưng hệ số hằng chỉ là
+một mô hình giải thích cục bộ nếu các giả thiết đó không thỏa.
+
+\subsection{Hệ quả đối với thiết kế và đánh giá PINN}
+
+Các phân tích trên gợi ý phân biệt bốn câu hỏi: lớp hàm có xấp xỉ
+được nghiệm trong chuẩn cần thiết không; tập phối trí có đánh giá
+đúng phần dư không; thuật toán có giảm đủ hàm mục tiêu không; và
+chuẩn phần dư đó có kiểm soát sai số nghiệm không. Những câu hỏi này
+liên hệ với nhau, nhưng không thể thay thế cho nhau.
+
+Một cách thay đổi biểu diễn đầu vào là dùng các đặc trưng Fourier
+\begin{equation}
+ \gamma(\mathbf{z})=
+ \begin{bmatrix}
+ \cos(2\pi\mathbf{B}\mathbf{z})\\
+ \sin(2\pi\mathbf{B}\mathbf{z})
+ \end{bmatrix},\qquad
+ \mathbf{B}\in\mathbb{R}^{m_f\times(d+1)}.
+ \label{p4:eq:fourier-features}
+\end{equation}
+Trong đó, các hàng của $\mathbf{B}$ là các vectơ tần số được chọn,
+các hàm lượng giác tác động theo tọa độ và $m_f$ là số tần số.
+Mạng nhận $\gamma(\mathbf{z})$ thay cho hoặc cùng với đầu vào ban
+đầu. Cơ chế này được nghiên cứu trong \cite{tancik2020}.
+Nó đưa các thang dao động vào biểu diễn, nhưng khi tính phần dư phải
+lấy cả đạo hàm của $\gamma$; các hệ số tần số lớn cũng xuất hiện
+trong các đạo hàm đó.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Cơ chế tác động và giới hạn cần kiểm tra của một số lựa chọn.}
+\label{p4:tab:remedies}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.23\textwidth}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Lựa chọn}&\textbf{Tác động chính}&\textbf{Điều cần kiểm tra}\\
+\midrule
+Khử thứ nguyên và điều chỉnh trọng số&
+Thay đổi tỉ lệ các thành phần và hướng cập nhật.&
+Giá trị từng mất mát, độ lớn và góc giữa các građien.\\
+\addlinespace
+Đặc trưng Fourier hoặc đổi thang đầu vào&
+Thay đổi biểu diễn và độ nhạy theo tham số.&
+Dải tần được đưa vào, đạo hàm bậc cao và sai số trên điểm mới.\\
+\addlinespace
+Lấy mẫu thích nghi&
+Tăng mật độ đánh giá ở vùng được chọn.&
+Chuẩn mục tiêu có thay đổi không; trọng số lấy mẫu có cần hiệu chỉnh không.\\
+\addlinespace
+Ràng buộc cứng&
+Áp chính xác một số điều kiện theo cấu trúc.&
+Độ trơn của hàm nâng và nhân tử; tính tương thích và khả năng xấp xỉ.\\
+\addlinespace
+Chia miền hoặc chia khoảng thời gian&
+Thay đổi kích thước và thang của các bài toán con.&
+Điều kiện ghép nối, sự truyền sai số và chi phí tổng.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Không có kết luận chung rằng chính quy hóa luôn bất lợi cho lớp
+biên: giảm chuẩn trọng số có thể làm khó việc khớp một số dao động,
+nhưng cũng có thể giảm nhạy cảm với nhiễu và quá khớp tập phối trí.
+Tương tự, một kỹ thuật thay đổi kiến trúc hoặc thang đo có thể đồng
+thời tác động lên xấp xỉ và tối ưu; không nên xem các tầng phân tích
+là các cơ chế hoàn toàn độc lập.
+
+Trong đánh giá số, cần báo cáo riêng các thành phần mất mát, kích
+thước và quy tắc lấy mẫu, chiều dài bước, trọng số, kiến trúc và
+chuẩn sai số. Khi có nghiệm tham chiếu, sai số tương đối theo $L^2$
+là $\|u_{\boldsymbol{\theta}}-u_{\mathrm{ref}}\|_{L^2}/
+\|u_{\mathrm{ref}}\|_{L^2}$, với mẫu số khác không; sai số theo chuẩn
+cực đại là một đại lượng khác. Đối với lớp biên hoặc lớp chuyển tiếp,
+nên kiểm tra thêm vùng biến thiên nhanh trên tập điểm đủ mịn. Các
+chỉ tiêu này giúp phân biệt nghiệm có phần dư nhỏ tại điểm huấn
+luyện với nghiệm thực sự chính xác trong chuẩn cần quan tâm.

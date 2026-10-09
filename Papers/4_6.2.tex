@@ -1,0 +1,655 @@
+\subsection{Bốn phương trình nền tảng của lan truyền ngược trên một lô dữ liệu}
+Mục này mở rộng bốn phương trình nền tảng từ một mẫu dữ liệu sang một lô gồm $m$ mẫu được xử lý đồng thời. Cấu trúc mạng và các ký hiệu $L$, $n_l$, $\mathbf{W}^{[l]}$, $\mathbf{b}^{[l]}$, $\sigma^{[l]}$ được giữ nguyên như đối với một mẫu. 
+ 
+\paragraph{Lan truyền tiến cho cả lô.\\}
+Gom các véc-tơ đặc trưng đầu vào của $m$ mẫu thành các cột của ma trận $\mathbf{X} = \mathbf{A}^{[0]} \in \mathbb{R}^{n_0 \times m}$. Với mỗi lớp $l \in \{1,2,\dots,L\}$, quá trình lan truyền tiến cho cả lô được xác định bởi:
+\begin{equation}
+\label{eq:bpb_forward}
+\begin{aligned}
+\mathbf{Z}^{[l]} &= \mathbf{W}^{[l]}\mathbf{A}^{[l-1]} + \mathbf{b}^{[l]}\mathbf{1}_m^{\top}, \qquad \mathbf{A}^{[l]} = \sigma^{[l]}\!\left(\mathbf{Z}^{[l]}\right), \\
+\mathbf{A}^{[0]} &= \mathbf{X} \in \mathbb{R}^{n_0 \times m}, \qquad \mathbf{A}^{[L]} = \widehat{\mathbf{Y}} \in \mathbb{R}^{n_L \times m}.
+\end{aligned}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $m \in \mathbb{N}$, $m \geq 1$: Số mẫu trong một lô. Các chỉ số $i, s \in \{1,\dots,m\}$ dùng để đánh số mẫu.
+    \item $\mathbf{A}^{[l]} \in \mathbb{R}^{n_l \times m}$: Ma trận kích hoạt tại lớp $l$, mỗi cột là véc-tơ kích hoạt của một mẫu:
+    \[
+    \mathbf{A}^{[l]} = \begin{bmatrix} \mathbf{a}^{[l](1)} & \mathbf{a}^{[l](2)} & \cdots & \mathbf{a}^{[l](m)} \end{bmatrix},
+    \qquad \mathbf{a}^{[l](i)} \in \mathbb{R}^{n_l}.
+    \]
+    \item $\mathbf{Z}^{[l]} \in \mathbb{R}^{n_l \times m}$: Ma trận tiền kích hoạt tại lớp $l$, cột thứ $i$ là $\mathbf{z}^{[l](i)} \in \mathbb{R}^{n_l}$.
+    \item $\widehat{\mathbf{Y}} \in \mathbb{R}^{n_L \times m}$: Ma trận dự đoán đầu ra của mạng cho cả lô. Ma trận nhãn chuẩn $\mathbf{Y} \in \mathbb{R}^{n_L \times m}$ có cột thứ $i$ là nhãn $\mathbf{y}^{(i)}$ của mẫu thứ $i$.
+    \item $\mathbf{1}_m \in \mathbb{R}^{m}$: Véc-tơ cột gồm $m$ phần tử đều bằng $1$.
+    \item $\mathbf{b}^{[l]}\mathbf{1}_m^{\top} \in \mathbb{R}^{n_l \times m}$: Tích của véc-tơ cột $n_l \times 1$ với véc-tơ hàng $1 \times m$, cho ma trận có $m$ cột đều bằng $\mathbf{b}^{[l]}$. Phép toán này chỉ dùng để cộng cùng một véc-tơ độ lệch vào mọi cột.
+    \item $\mathbf{W}^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$, $\mathbf{b}^{[l]} \in \mathbb{R}^{n_l}$, $\sigma^{[l]}(\cdot)$: Ma trận trọng số, véc-tơ độ lệch và hàm kích hoạt tại lớp $l$, hoàn toàn như đối với một mẫu; $m$ mẫu dùng chung các tham số này.
+\end{itemize}
+Theo dạng thành phần, với $j \in \{1,\dots,n_l\}$ và $i \in \{1,\dots,m\}$:
+\begin{equation}
+Z_{ji}^{[l]} = \sum_{k=1}^{n_{l-1}} W_{jk}^{[l]} A_{ki}^{[l-1]} + b_j^{[l]}, \qquad A_{ji}^{[l]} = \sigma^{[l]}\!\left(Z_{ji}^{[l]}\right),
+\label{eq:bpb_forward_component}
+\end{equation}
+trong đó $Z_{ji}^{[l]}$ và $A_{ji}^{[l]}$ lần lượt là phần tử ở hàng $j$, cột $i$ của $\mathbf{Z}^{[l]}$ và $\mathbf{A}^{[l]}$. Cột thứ $i$ của \eqref{eq:bpb_forward} chính là phương trình lan truyền tiến $\mathbf{z}^{[l](i)} = \mathbf{W}^{[l]}\mathbf{a}^{[l-1](i)} + \mathbf{b}^{[l]}$ của riêng mẫu thứ $i$.
+ 
+\paragraph{Hàm mất mát trên lô.\\} 
+Gọi $\ell(\widehat{\mathbf{y}},\mathbf{y})$ là hàm mất mát của một mẫu và đặt $\mathcal{L}^{(i)} = \ell\!\left(\mathbf{a}^{[L](i)}, \mathbf{y}^{(i)}\right)$. Ký hiệu $\mathcal{L}^{(i)}$ chỉ mất mát của riêng mẫu thứ $i$, còn $\mathcal{L}$ chỉ mất mát trung bình trên lô. Hàm mất mát trên lô được xác định bằng trung bình cộng các hàm mất mát của từng mẫu:
+\begin{equation}
+\mathcal{L} = \frac{1}{m}\sum_{i=1}^{m}\mathcal{L}^{(i)}.
+\label{eq:bpb_loss}
+\end{equation}
+Trong mục này, $\mathcal{L}$ phụ thuộc vào các tham số thông qua đầu ra của mạng, không có số hạng phụ thuộc trực tiếp vào tham số như số hạng chính quy hóa. Mục tiêu của lan truyền ngược trên lô là tính các đạo hàm
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial\mathbf{W}^{[l]}}, \qquad \frac{\partial\mathcal{L}}{\partial\mathbf{b}^{[l]}}, \qquad l=1,\dots,L.
+\label{eq:bpb_goal}
+\end{equation}
+Đối với một biến ma trận $\mathbf{U}$, gradient được hiểu theo tích vô hướng Frobenius:
+\begin{equation}
+\mathrm{d}\mathcal{L}[\mathbf{H}]
+= \left\langle\nabla_{\mathbf{U}}\mathcal{L},\mathbf{H}\right\rangle_F,
+\qquad
+\langle\mathbf{P},\mathbf{Q}\rangle_F
+= \operatorname{tr}(\mathbf{P}^{\top}\mathbf{Q})
+= \sum_{j,i} P_{ji}Q_{ji}.
+\label{eq:bpb_frobenius_convention}
+\end{equation}
+Ở đây $\mathbf{H}$ là một nhiễu cùng kích thước với $\mathbf{U}$, và các biến đầu vào khác được giữ cố định. Với quy ước này, $\nabla_{\mathbf{U}}\mathcal{L}$ có cùng kích thước với $\mathbf{U}$ và có phần tử $(j,i)$ là $\partial\mathcal{L}/\partial U_{ji}$.
+ 
+\paragraph{Ma trận sai số.}
+Ta định nghĩa ma trận sai số lan truyền ngược tại lớp $l$:
+\begin{equation}
+\boldsymbol{\Delta}^{[l]} \triangleq \nabla_{\mathbf{Z}^{[l]}}\mathcal{L} =
+\begin{bmatrix}
+\dfrac{\partial\mathcal{L}}{\partial Z_{11}^{[l]}} & \cdots & \dfrac{\partial\mathcal{L}}{\partial Z_{1m}^{[l]}} \\[8pt]
+\vdots & \ddots & \vdots \\[4pt]
+\dfrac{\partial\mathcal{L}}{\partial Z_{n_l 1}^{[l]}} & \cdots & \dfrac{\partial\mathcal{L}}{\partial Z_{n_l m}^{[l]}}
+\end{bmatrix}
+\in \mathbb{R}^{n_l \times m}.
+\label{eq:bpb_delta_def}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\boldsymbol{\Delta}^{[l]} \in \mathbb{R}^{n_l \times m}$: Ma trận sai số, phần tử $\Delta_{ji}^{[l]}$ ở hàng $j$, cột $i$ là đạo hàm riêng của hàm mất mát trên lô $\mathcal{L}$ theo tiền kích hoạt của nơ-ron thứ $j$ tại lớp $l$ ứng với mẫu thứ $i$.
+    \item $\nabla_{\mathbf{Z}^{[l]}}\mathcal{L} \in \mathbb{R}^{n_l \times m}$: Ma trận gradient của $\mathcal{L}$ theo ma trận $\mathbf{Z}^{[l]}$; có cùng kích thước với $\mathbf{Z}^{[l]}$ và phần tử $(j,i)$ là $\partial\mathcal{L}/\partial Z_{ji}^{[l]}$.
+    \item $\triangleq$: Ký hiệu định nghĩa toán học (vế trái được định nghĩa bằng vế phải).
+\end{itemize}
+Để liên hệ với trường hợp một mẫu, ký hiệu $\boldsymbol{\delta}^{[l](i)}$ là véc-tơ sai số của riêng mẫu thứ $i$:
+\begin{equation}
+\boldsymbol{\delta}^{[l](i)} \triangleq \nabla_{\mathbf{z}^{[l](i)}}\mathcal{L}^{(i)} \in \mathbb{R}^{n_l},
+\qquad
+\delta_j^{[l](i)} = \frac{\partial\mathcal{L}^{(i)}}{\partial z_j^{[l](i)}}.
+\label{eq:bpb_delta_single}
+\end{equation}
+Đây chính là véc-tơ sai số của một mẫu dữ liệu (xét hàm mất mát $\mathcal{L}^{(i)}$ của riêng mẫu $i$), do đó \emph{không} chứa nhân tử $1/m$.
+ 
+\paragraph{Vị trí của nhân tử $1/m$.} % [DẪN XUẤT]
+Khi giữ cố định các tham số, theo \eqref{eq:bpb_forward_component}, $Z_{ji}^{[l]}$ và $A_{ji}^{[l]}$ chỉ phụ thuộc vào cột thứ $i$ của $\mathbf{A}^{[l-1]}$. Quy nạp theo $l$, cột thứ $i$ của $\mathbf{Z}^{[l]}$ và $\mathbf{A}^{[l]}$ chỉ phụ thuộc vào mẫu thứ $i$. Do đó $\mathcal{L}^{(s)}$ chỉ phụ thuộc vào cột thứ $s$ của $\mathbf{Z}^{[l]}$, và với mọi $s, i \in \{1,\dots,m\}$:
+\begin{equation}
+\frac{\partial\mathcal{L}^{(s)}}{\partial Z_{ji}^{[l]}} = \delta^{\mathrm{K}}_{si}\,\delta_j^{[l](i)},
+\label{eq:bpb_independence}
+\end{equation}
+trong đó $\delta^{\mathrm{K}}_{si}$ là Kronecker delta ($\delta^{\mathrm{K}}_{si} = 1$ khi $s = i$ và $\delta^{\mathrm{K}}_{si} = 0$ khi $s \neq i$). Sự tách biệt này là tính chất của đồ thị tính toán; nó không đòi hỏi các mẫu phải độc lập theo nghĩa xác suất. Từ \eqref{eq:bpb_loss}, tính tuyến tính của đạo hàm riêng và \eqref{eq:bpb_independence}:
+\begin{equation}
+\Delta_{ji}^{[l]} = \frac{\partial\mathcal{L}}{\partial Z_{ji}^{[l]}}
+= \frac{1}{m}\sum_{s=1}^{m}\frac{\partial\mathcal{L}^{(s)}}{\partial Z_{ji}^{[l]}}
+= \frac{1}{m}\sum_{s=1}^{m}\delta^{\mathrm{K}}_{si}\,\delta_j^{[l](i)}
+= \frac{1}{m}\,\delta_j^{[l](i)}.
+\end{equation}
+Viết dưới dạng ma trận:
+\begin{equation}
+\boldsymbol{\Delta}^{[l]} = \frac{1}{m}\begin{bmatrix} \boldsymbol{\delta}^{[l](1)} & \boldsymbol{\delta}^{[l](2)} & \cdots & \boldsymbol{\delta}^{[l](m)} \end{bmatrix}.
+\label{eq:bpb_delta_columns}
+\end{equation}
+Như vậy, cột thứ $i$ của $\boldsymbol{\Delta}^{[l]}$ là véc-tơ sai số của mẫu thứ $i$ nhân với $1/m$. Nhân tử lấy trung bình $1/m$ đã được tích hợp trực tiếp vào $\boldsymbol{\Delta}^{[l]}$. Các phép lan truyền sai số tiếp theo là tuyến tính đối với sai số nhận từ lớp sau, nên nhân tử này được mang theo qua các lớp. Vì vậy, khi tính gradient theo tham số từ $\boldsymbol{\Delta}^{[l]}$, không được chia thêm cho $m$. Từ định nghĩa trên và áp dụng quy tắc chuỗi đối với hàm nhiều biến, ta thiết lập bốn hệ thức cơ bản của lan truyền ngược trên một lô dữ liệu.
+
+\subsubsection{Phương trình thứ nhất: Sai số lan truyền ngược tại lớp đầu ra}
+ 
+Hàm mất mát $\mathcal{L}$ phụ thuộc vào $Z_{ji}^{[L]}$ thông qua ma trận kích hoạt đầu ra $\mathbf{A}^{[L]}$. Khai triển quy tắc chuỗi trên toàn bộ các thành phần của ma trận này:
+\begin{equation}
+\Delta_{ji}^{[L]} = \frac{\partial\mathcal{L}}{\partial Z_{ji}^{[L]}} = \sum_{k=1}^{n_L}\sum_{s=1}^{m} \frac{\partial\mathcal{L}}{\partial A_{ks}^{[L]}}\,\frac{\partial A_{ks}^{[L]}}{\partial Z_{ji}^{[L]}}.
+\label{eq:bpb_chain_output}
+\end{equation}
+ 
+Vì hàm kích hoạt $\sigma^{[L]}: \mathbb{R} \to \mathbb{R}$ tác động độc lập trên từng phần tử, $A_{ks}^{[L]} = \sigma^{[L]}\!\left(Z_{ks}^{[L]}\right)$. Khi lấy đạo hàm riêng của $A_{ks}^{[L]}$ theo $Z_{ji}^{[L]}$, ta xét hai trường hợp:
+\begin{itemize}
+    \item Khi $k = j$ và $s = i$: $A_{ji}^{[L]}$ phụ thuộc trực tiếp vào $Z_{ji}^{[L]}$, do đó
+    \begin{equation}
+    \frac{\partial A_{ji}^{[L]}}{\partial Z_{ji}^{[L]}} = {\sigma^{[L]}}'\!\left(Z_{ji}^{[L]}\right).
+    \end{equation}
+    \item Khi $k \neq j$ hoặc $s \neq i$ (khác nơ-ron hoặc khác mẫu): $A_{ks}^{[L]}$ hoàn toàn độc lập với $Z_{ji}^{[L]}$, do đó
+    \begin{equation}
+    \frac{\partial A_{ks}^{[L]}}{\partial Z_{ji}^{[L]}} = 0.
+    \end{equation}
+\end{itemize}
+Biểu diễn gọn hai trường hợp bằng Kronecker delta:
+\begin{equation}
+\frac{\partial A_{ks}^{[L]}}{\partial Z_{ji}^{[L]}} = {\sigma^{[L]}}'\!\left(Z_{ks}^{[L]}\right)\delta^{\mathrm{K}}_{kj}\,\delta^{\mathrm{K}}_{si}.
+\label{eq:bpb_derivative_elementwise}
+\end{equation}
+Thay \eqref{eq:bpb_derivative_elementwise} vào \eqref{eq:bpb_chain_output}:
+\begin{equation}
+\Delta_{ji}^{[L]} = \sum_{k=1}^{n_L}\sum_{s=1}^{m} \frac{\partial\mathcal{L}}{\partial A_{ks}^{[L]}}\,{\sigma^{[L]}}'\!\left(Z_{ks}^{[L]}\right)\delta^{\mathrm{K}}_{kj}\,\delta^{\mathrm{K}}_{si}.
+\end{equation}
+Nhờ tính chất của Kronecker delta, mọi số hạng có $k \neq j$ hoặc $s \neq i$ đều triệt tiêu, chỉ còn số hạng $(k,s) = (j,i)$:
+\begin{equation}
+\Delta_{ji}^{[L]} = \frac{\partial\mathcal{L}}{\partial A_{ji}^{[L]}}\,{\sigma^{[L]}}'\!\left(Z_{ji}^{[L]}\right)
+\qquad \forall\, j = 1,\dots,n_L,\ \forall\, i = 1,\dots,m.
+\label{eq:bpb_scalar_output}
+\end{equation}
+ 
+Để chuyển $n_L \times m$ phương trình vô hướng ở \eqref{eq:bpb_scalar_output} sang dạng ma trận, ta sử dụng các định nghĩa sau:
+\begin{enumerate}
+    \item \textbf{Ma trận gradient:} Gradient của hàm mất mát vô hướng $\mathcal{L}$ đối với ma trận $\mathbf{A}^{[L]} \in \mathbb{R}^{n_L \times m}$ là ma trận cùng kích thước chứa các đạo hàm riêng:
+    \begin{equation}
+    \nabla_{\mathbf{A}^{[L]}}\mathcal{L} \triangleq
+    \begin{bmatrix}
+    \dfrac{\partial\mathcal{L}}{\partial A_{11}^{[L]}} & \cdots & \dfrac{\partial\mathcal{L}}{\partial A_{1m}^{[L]}} \\[8pt]
+    \vdots & \ddots & \vdots \\[4pt]
+    \dfrac{\partial\mathcal{L}}{\partial A_{n_L 1}^{[L]}} & \cdots & \dfrac{\partial\mathcal{L}}{\partial A_{n_L m}^{[L]}}
+    \end{bmatrix} \in \mathbb{R}^{n_L \times m}.
+    \end{equation}
+    Theo \eqref{eq:bpb_loss},
+    \[
+    \left[\nabla_{\mathbf{A}^{[L]}}\mathcal{L}\right]_{ji}
+    =\frac{1}{m}\frac{\partial\mathcal{L}^{(i)}}{\partial a_j^{[L](i)}}.
+    \]
+    Vì vậy, cột thứ $i$ là $\frac{1}{m}\nabla_{\mathbf{a}^{[L](i)}}\mathcal{L}^{(i)}$.
+ 
+    \item \textbf{Đạo hàm hàm kích hoạt theo từng phần tử:} Với hàm kích hoạt khả vi $\sigma^{[L]}$ tác động theo từng phần tử lên $\mathbf{Z}^{[L]}$, ma trận đạo hàm ${\sigma^{[L]}}'\!\left(\mathbf{Z}^{[L]}\right) \in \mathbb{R}^{n_L \times m}$ được định nghĩa bởi
+    \begin{equation}
+    \left[{\sigma^{[L]}}'\!\left(\mathbf{Z}^{[L]}\right)\right]_{ji} \triangleq {\sigma^{[L]}}'\!\left(Z_{ji}^{[L]}\right), \qquad \forall\, j = 1,\dots,n_L,\ \forall\, i = 1,\dots,m.
+    \end{equation}
+    Trong đó $[\,\cdot\,]_{ji}$ là ký hiệu chỉ phần tử nằm ở hàng $j$, cột $i$ của ma trận bên trong dấu ngoặc vuông. Ma trận ${\sigma^{[L]}}'(\mathbf{Z}^{[L]})$ chỉ gom các đạo hàm vô hướng theo từng phần tử; nó không phải ma trận Jacobian đầy đủ của ánh xạ từ ma trận $\mathbf{Z}^{[L]}$ sang $\mathbf{A}^{[L]}$.
+ 
+    \item \textbf{Tích Hadamard:} Cho hai ma trận tùy ý $\mathbf{U}, \mathbf{V} \in \mathbb{R}^{n \times m}$, phép nhân từng phần tử là ánh xạ song tuyến tính $\odot: \mathbb{R}^{n \times m} \times \mathbb{R}^{n \times m} \to \mathbb{R}^{n \times m}$, được định nghĩa bởi
+    \begin{equation}
+    [\mathbf{U} \odot \mathbf{V}]_{ji} \triangleq U_{ji}V_{ji}, \qquad \forall\, j = 1,\dots,n,\ \forall\, i = 1,\dots,m.
+    \end{equation}
+    Tích Hadamard chỉ xác định cho hai ma trận có cùng kích thước; khác với tích ma trận thông thường, nó nhân các phần tử ở cùng vị trí. Ví dụ:
+    \[
+    \begin{bmatrix}1&2\\3&4\end{bmatrix}\odot\begin{bmatrix}5&6\\7&8\end{bmatrix}
+    =\begin{bmatrix}5&12\\21&32\end{bmatrix}.
+    \]
+\end{enumerate}
+ 
+Từ \eqref{eq:bpb_scalar_output}, phần tử $(j,i)$ của $\boldsymbol{\Delta}^{[L]}$ là tích của phần tử $(j,i)$ thuộc $\nabla_{\mathbf{A}^{[L]}}\mathcal{L}$ với phần tử $(j,i)$ thuộc ${\sigma^{[L]}}'\!\left(\mathbf{Z}^{[L]}\right)$. Áp dụng định nghĩa của tích Hadamard, ta thu được phương trình cơ bản thứ nhất dưới dạng ma trận:
+\begin{equation}
+\boxed{
+\boldsymbol{\Delta}^{[L]} = \nabla_{\mathbf{A}^{[L]}}\mathcal{L} \odot {\sigma^{[L]}}'\!\left(\mathbf{Z}^{[L]}\right)
+}
+\label{eq:bpb_output}
+\end{equation}
+Phương trình này nhất quán với trường hợp một mẫu: cột thứ $i$ của hai vế cho $\frac{1}{m}\boldsymbol{\delta}^{[L](i)} = \frac{1}{m}\nabla_{\mathbf{a}^{[L](i)}}\mathcal{L}^{(i)} \odot {\sigma^{[L]}}'\!\left(\mathbf{z}^{[L](i)}\right)$.
+ 
+\subsubsection{Phương trình thứ hai: Lan truyền sai số về các lớp ẩn trước}
+Xét lớp ẩn $l \in \{1,2,\dots,L-1\}$. Mục tiêu là biểu diễn $\boldsymbol{\Delta}^{[l]} \in \mathbb{R}^{n_l \times m}$ thông qua $\boldsymbol{\Delta}^{[l+1]} \in \mathbb{R}^{n_{l+1} \times m}$.
+ 
+\paragraph{1. Khai triển quy tắc chuỗi đa biến:}
+Xét phần tử ở hàng $j \in \{1,\dots,n_l\}$, cột $i \in \{1,\dots,m\}$ của $\boldsymbol{\Delta}^{[l]}$. Sự thay đổi của $Z_{ji}^{[l]}$ lan truyền đến $\mathcal{L}$ thông qua lớp kế tiếp. Khi khai triển quy tắc chuỗi trên toàn bộ các phần tử của $\mathbf{Z}^{[l+1]}$, ta có:
+\begin{equation}
+\Delta_{ji}^{[l]} \triangleq \frac{\partial\mathcal{L}}{\partial Z_{ji}^{[l]}} = \sum_{k=1}^{n_{l+1}}\sum_{s=1}^{m} \frac{\partial\mathcal{L}}{\partial Z_{ks}^{[l+1]}}\,\frac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}}.
+\label{eq:bpb_hidden_chain}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\Delta_{ji}^{[l]}$: Phần tử ở hàng $j$, cột $i$ của $\boldsymbol{\Delta}^{[l]}$; đại diện cho mức độ ảnh hưởng của nơ-ron thứ $j$ tại lớp $l$, ứng với mẫu thứ $i$, lên hàm mất mát trên lô.
+    \item $\sum_{k=1}^{n_{l+1}}\sum_{s=1}^{m}$: Phép tổng lấy qua toàn bộ các nơ-ron ($k$) và toàn bộ các mẫu ($s$) tại lớp kế tiếp $l+1$.
+    \item $Z_{ks}^{[l+1]}$: Tiền kích hoạt của nơ-ron thứ $k$ tại lớp $l+1$ ứng với mẫu thứ $s$.
+    \item $\dfrac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}}$: Đạo hàm cục bộ, thể hiện tốc độ thay đổi của $Z_{ks}^{[l+1]}$ khi $Z_{ji}^{[l]}$ thay đổi.
+\end{itemize}
+Theo định nghĩa của ma trận sai số, $\dfrac{\partial\mathcal{L}}{\partial Z_{ks}^{[l+1]}} = \Delta_{ks}^{[l+1]}$. Do đó \eqref{eq:bpb_hidden_chain} trở thành:
+\begin{equation}
+\Delta_{ji}^{[l]} = \sum_{k=1}^{n_{l+1}}\sum_{s=1}^{m} \Delta_{ks}^{[l+1]}\,\frac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}}.
+\label{eq:bpb_hidden_sub}
+\end{equation}
+ 
+\paragraph{2. Khai triển chi tiết đạo hàm $\dfrac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}}$:}
+Từ \eqref{eq:bpb_forward_component}, phần tử $Z_{ks}^{[l+1]}$ được xác định bởi
+\begin{equation}
+Z_{ks}^{[l+1]} = \sum_{r=1}^{n_l} W_{kr}^{[l+1]} A_{rs}^{[l]} + b_k^{[l+1]},
+\label{eq:bpb_forward_zks}
+\end{equation}
+và $Z_{ji}^{[l]}$ ảnh hưởng đến nó thông qua các biến trung gian $A_{rt}^{[l]} = \sigma^{[l]}\!\left(Z_{rt}^{[l]}\right)$ với $r \in \{1,\dots,n_l\}$ và $t \in \{1,\dots,m\}$. Áp dụng quy tắc chuỗi:
+\begin{equation}
+\frac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}} = \sum_{r=1}^{n_l}\sum_{t=1}^{m} \frac{\partial Z_{ks}^{[l+1]}}{\partial A_{rt}^{[l]}}\,\frac{\partial A_{rt}^{[l]}}{\partial Z_{ji}^{[l]}}.
+\label{eq:bpb_chain_zks_zji}
+\end{equation}
+Ta lần lượt tính hai thành phần đạo hàm riêng trong dấu tổng:
+\begin{itemize}
+    \item Từ \eqref{eq:bpb_forward_zks}, $Z_{ks}^{[l+1]}$ chỉ chứa các $A_{rs}^{[l]}$ cùng cột $s$, với hệ số $W_{kr}^{[l+1]}$:
+    \begin{equation}
+    \frac{\partial Z_{ks}^{[l+1]}}{\partial A_{rt}^{[l]}} = W_{kr}^{[l+1]}\,\delta^{\mathrm{K}}_{st}.
+    \end{equation}
+    \item Vì hàm kích hoạt $\sigma^{[l]}$ tác động độc lập trên từng phần tử, tương tự \eqref{eq:bpb_derivative_elementwise}:
+    \begin{equation}
+    \frac{\partial A_{rt}^{[l]}}{\partial Z_{ji}^{[l]}} = {\sigma^{[l]}}'\!\left(Z_{rt}^{[l]}\right)\delta^{\mathrm{K}}_{rj}\,\delta^{\mathrm{K}}_{ti}.
+    \end{equation}
+\end{itemize}
+Thay hai kết quả trên vào \eqref{eq:bpb_chain_zks_zji}:
+\begin{equation}
+\frac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}} = \sum_{r=1}^{n_l}\sum_{t=1}^{m} W_{kr}^{[l+1]}\,\delta^{\mathrm{K}}_{st}\,{\sigma^{[l]}}'\!\left(Z_{rt}^{[l]}\right)\delta^{\mathrm{K}}_{rj}\,\delta^{\mathrm{K}}_{ti}.
+\end{equation}
+Sử dụng tính chất của Kronecker delta (chỉ số hạng $r = j$ và $t = i$ được giữ lại), ta được:
+\begin{equation}
+\frac{\partial Z_{ks}^{[l+1]}}{\partial Z_{ji}^{[l]}} = W_{kj}^{[l+1]}\,{\sigma^{[l]}}'\!\left(Z_{ji}^{[l]}\right)\delta^{\mathrm{K}}_{si}.
+\label{eq:bpb_zks_zji_final}
+\end{equation}
+Kết quả này cho thấy: tiền kích hoạt của mẫu $i$ chỉ ảnh hưởng đến tiền kích hoạt của chính mẫu $i$ ở lớp sau (thừa số $\delta^{\mathrm{K}}_{si}$).
+ 
+\paragraph{3. Biểu diễn vô hướng của sai số lan truyền ngược ở lớp ẩn $l$:}
+Thế \eqref{eq:bpb_zks_zji_final} vào \eqref{eq:bpb_hidden_sub}:
+\begin{equation}
+\Delta_{ji}^{[l]} = \sum_{k=1}^{n_{l+1}}\sum_{s=1}^{m} \Delta_{ks}^{[l+1]}\left[ W_{kj}^{[l+1]}\,{\sigma^{[l]}}'\!\left(Z_{ji}^{[l]}\right)\delta^{\mathrm{K}}_{si} \right].
+\end{equation}
+Áp dụng tính chất của $\delta^{\mathrm{K}}_{si}$ để triệt tiêu tổng theo $s$ (chỉ giữ lại $s = i$), rồi đưa nhân tử ${\sigma^{[l]}}'\!\left(Z_{ji}^{[l]}\right)$ (không phụ thuộc chỉ số tổng $k$) ra ngoài dấu tổng:
+\begin{equation}
+\Delta_{ji}^{[l]} = \left( \sum_{k=1}^{n_{l+1}} W_{kj}^{[l+1]}\,\Delta_{ki}^{[l+1]} \right){\sigma^{[l]}}'\!\left(Z_{ji}^{[l]}\right),
+\qquad \forall\, j = 1,\dots,n_l,\ \forall\, i = 1,\dots,m.
+\label{eq:bpb_second_scalar}
+\end{equation}
+ 
+\paragraph{4. Biểu diễn dưới dạng ma trận của sai số lan truyền ngược ở lớp ẩn $l$:}
+Để chuyển tổng $\sum_{k=1}^{n_{l+1}} W_{kj}^{[l+1]}\Delta_{ki}^{[l+1]}$ sang phép toán ma trận, ta xét ma trận chuyển vị $\left(\mathbf{W}^{[l+1]}\right)^{\top} \in \mathbb{R}^{n_l \times n_{l+1}}$, có phần tử tại hàng $j$, cột $k$ thỏa
+\begin{equation}
+\left[\left(\mathbf{W}^{[l+1]}\right)^{\top}\right]_{jk} = W_{kj}^{[l+1]}.
+\end{equation}
+Trong đó $\top$ là ký hiệu phép chuyển vị ma trận (hoán đổi các hàng thành các cột và ngược lại), và $W_{kj}^{[l+1]}$ là trọng số của liên kết truyền tín hiệu từ nơ-ron thứ $j$ tại lớp $l$ đến nơ-ron thứ $k$ tại lớp $l+1$.
+ 
+Theo định nghĩa phép nhân hai ma trận, với $\boldsymbol{\Delta}^{[l+1]} \in \mathbb{R}^{n_{l+1} \times m}$:
+\begin{equation}
+\left[ \left(\mathbf{W}^{[l+1]}\right)^{\top}\boldsymbol{\Delta}^{[l+1]} \right]_{ji} = \sum_{k=1}^{n_{l+1}} \left[\left(\mathbf{W}^{[l+1]}\right)^{\top}\right]_{jk}\Delta_{ki}^{[l+1]} = \sum_{k=1}^{n_{l+1}} W_{kj}^{[l+1]}\,\Delta_{ki}^{[l+1]}.
+\label{eq:bpb_transpose_product_proof}
+\end{equation}
+Biểu thức \eqref{eq:bpb_transpose_product_proof} chính là phần tử $(j,i)$ của ma trận tích $\left(\mathbf{W}^{[l+1]}\right)^{\top}\boldsymbol{\Delta}^{[l+1]} \in \mathbb{R}^{n_l \times m}$. Kết hợp với định nghĩa của tích Hadamard, phương trình \eqref{eq:bpb_second_scalar} được viết lại dưới dạng ma trận:
+\begin{equation}
+\boxed{
+\boldsymbol{\Delta}^{[l]} = \left[ \left(\mathbf{W}^{[l+1]}\right)^{\top}\boldsymbol{\Delta}^{[l+1]} \right] \odot {\sigma^{[l]}}'\!\left(\mathbf{Z}^{[l]}\right)
+}
+\label{eq:bpb_second_matrix}
+\end{equation}
+với $l = L-1, L-2, \dots, 1$. Cặp ngoặc vuông cho biết thứ tự thực hiện: nhân ma trận trước, rồi mới nhân Hadamard. Kích thước các đại lượng khớp nhau: $(n_l \times n_{l+1})\cdot(n_{l+1} \times m) = n_l \times m$, bằng kích thước của ${\sigma^{[l]}}'\!\left(\mathbf{Z}^{[l]}\right)$.
+ 
+Phương trình \eqref{eq:bpb_second_matrix} cho phép truyền sai số của cả $m$ mẫu từ lớp $l+1$ về lớp $l$ bằng một phép nhân ma trận và một phép nhân Hadamard: cột thứ $i$ của vế phải chỉ được tạo từ cột thứ $i$ của $\boldsymbol{\Delta}^{[l+1]}$ và $\mathbf{Z}^{[l]}$, phản ánh việc các mẫu không ảnh hưởng lẫn nhau.
+
+\subsubsection{Phương trình thứ ba: Đạo hàm theo véc-tơ độ lệch}
+ 
+Xét thành phần thứ $j$ của véc-tơ độ lệch $\mathbf{b}^{[l]}$ ($j = 1,\dots,n_l$). Thành phần $b_j^{[l]}$ xuất hiện trong $Z_{js}^{[l]}$ với \emph{mọi} mẫu $s = 1,\dots,m$, nên ảnh hưởng đến $\mathcal{L}$ thông qua toàn bộ các phần tử của $\mathbf{Z}^{[l]}$. Theo quy tắc chuỗi đa biến:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial b_j^{[l]}} = \sum_{p=1}^{n_l}\sum_{s=1}^{m} \frac{\partial\mathcal{L}}{\partial Z_{ps}^{[l]}}\,\frac{\partial Z_{ps}^{[l]}}{\partial b_j^{[l]}}.
+\label{eq:bpb_chain_bias}
+\end{equation}
+Theo \eqref{eq:bpb_forward_component}, $Z_{ps}^{[l]} = \sum_{k=1}^{n_{l-1}} W_{pk}^{[l]}A_{ks}^{[l-1]} + b_p^{[l]}$. Khi lấy đạo hàm cục bộ theo $\mathbf{b}^{[l]}$, ma trận $\mathbf{A}^{[l-1]}$ và các tham số khác được giữ cố định. Các thành phần của véc-tơ độ lệch là các tọa độ tham số riêng biệt, và $b_p^{[l]}$ được cộng vào $Z_{ps}^{[l]}$ với hệ số $1$ ở mọi mẫu $s$, nên
+\begin{equation}
+\frac{\partial Z_{ps}^{[l]}}{\partial b_j^{[l]}} = \delta^{\mathrm{K}}_{pj}, \qquad \forall\, s = 1,\dots,m.
+\end{equation}
+Thay vào \eqref{eq:bpb_chain_bias} cùng định nghĩa $\Delta_{ps}^{[l]} = \dfrac{\partial\mathcal{L}}{\partial Z_{ps}^{[l]}}$:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial b_j^{[l]}} = \sum_{p=1}^{n_l}\sum_{s=1}^{m} \Delta_{ps}^{[l]}\,\delta^{\mathrm{K}}_{pj}.
+\end{equation}
+Áp dụng tính chất của Kronecker delta (chỉ giữ lại số hạng $p = j$), ta thu được:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial b_j^{[l]}} = \sum_{s=1}^{m}\Delta_{js}^{[l]}, \qquad \forall\, j = 1,\dots,n_l.
+\label{eq:bpb_bias_component}
+\end{equation}
+So với trường hợp một mẫu, tổng theo mẫu xuất hiện vì cùng một $b_j^{[l]}$ được dùng cho cả $m$ mẫu.
+ 
+Để chuyển sang dạng véc-tơ, ta nhận xét rằng với $\mathbf{1}_m \in \mathbb{R}^m$, phần tử thứ $j$ của tích $\boldsymbol{\Delta}^{[l]}\mathbf{1}_m$ là
+\begin{equation}
+\left[\boldsymbol{\Delta}^{[l]}\mathbf{1}_m\right]_j = \sum_{s=1}^{m}\Delta_{js}^{[l]}\cdot 1 = \sum_{s=1}^{m}\Delta_{js}^{[l]},
+\end{equation}
+tức tổng các phần tử trên hàng thứ $j$ của $\boldsymbol{\Delta}^{[l]}$. So sánh với \eqref{eq:bpb_bias_component}, ta suy ra phương trình thứ ba:
+\begin{equation}
+\boxed{
+\nabla_{\mathbf{b}^{[l]}}\mathcal{L} = \boldsymbol{\Delta}^{[l]}\mathbf{1}_m \in \mathbb{R}^{n_l}
+}
+\label{eq:bpb_bias_vector}
+\end{equation}
+Ví dụ, với $n_l = 2$ và $m = 2$:
+\[
+\begin{bmatrix}1&2\\3&4\end{bmatrix}\begin{bmatrix}1\\1\end{bmatrix}=\begin{bmatrix}1+2\\3+4\end{bmatrix}=\begin{bmatrix}3\\7\end{bmatrix}.
+\]
+Theo \eqref{eq:bpb_delta_columns}, véc-tơ này cũng bằng $\dfrac{1}{m}\sum_{s=1}^{m}\boldsymbol{\delta}^{[l](s)}$, tức trung bình các đạo hàm theo $\mathbf{b}^{[l]}$ của từng mẫu.
+ 
+\subsubsection{Phương trình thứ tư: Đạo hàm theo ma trận trọng số}
+ 
+Xét phần tử $W_{jk}^{[l]}$ nằm ở hàng $j$, cột $k$ của ma trận trọng số $\mathbf{W}^{[l]} \in \mathbb{R}^{n_l \times n_{l-1}}$. Phần tử này xuất hiện trong $Z_{js}^{[l]}$ với mọi mẫu $s$. Tương tự, áp dụng quy tắc chuỗi cho hàm nhiều biến:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial W_{jk}^{[l]}} = \sum_{p=1}^{n_l}\sum_{s=1}^{m} \frac{\partial\mathcal{L}}{\partial Z_{ps}^{[l]}}\,\frac{\partial Z_{ps}^{[l]}}{\partial W_{jk}^{[l]}}.
+\label{eq:bpb_chain_weight}
+\end{equation}
+Lấy đạo hàm của $Z_{ps}^{[l]} = \sum_{r=1}^{n_{l-1}} W_{pr}^{[l]}A_{rs}^{[l-1]} + b_p^{[l]}$ theo biến $W_{jk}^{[l]}$. Trong mạng đang xét, $\mathbf{A}^{[l-1]}$ không phụ thuộc vào $\mathbf{W}^{[l]}$. Giữ cố định ma trận này cùng các tham số khác khi lấy đạo hàm cục bộ. Do các phần tử của ma trận trọng số là các tọa độ tham số riêng biệt, $\dfrac{\partial W_{pr}^{[l]}}{\partial W_{jk}^{[l]}} = 1$ khi và chỉ khi đồng thời $p = j$ và $r = k$, các trường hợp khác bằng $0$. Tính chất này được biểu diễn bằng tích của hai Kronecker delta:
+\begin{equation}
+\frac{\partial Z_{ps}^{[l]}}{\partial W_{jk}^{[l]}} = \sum_{r=1}^{n_{l-1}} \left(\delta^{\mathrm{K}}_{pj}\,\delta^{\mathrm{K}}_{rk}\right) A_{rs}^{[l-1]} = \delta^{\mathrm{K}}_{pj}\,A_{ks}^{[l-1]}.
+\end{equation}
+Thay kết quả này vào \eqref{eq:bpb_chain_weight}:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial W_{jk}^{[l]}} = \sum_{p=1}^{n_l}\sum_{s=1}^{m} \Delta_{ps}^{[l]}\left(\delta^{\mathrm{K}}_{pj}\,A_{ks}^{[l-1]}\right).
+\end{equation}
+Áp dụng tính chất của Kronecker delta $\delta^{\mathrm{K}}_{pj}$ (chỉ giữ lại số hạng $p = j$), biểu thức được rút gọn thành:
+\begin{equation}
+\frac{\partial\mathcal{L}}{\partial W_{jk}^{[l]}} = \sum_{s=1}^{m}\Delta_{js}^{[l]}\,A_{ks}^{[l-1]}, \qquad j = 1,\dots,n_l,\ k = 1,\dots,n_{l-1}.
+\label{eq:bpb_weight_component}
+\end{equation}
+ 
+Để chuyển sang dạng ma trận, ta định nghĩa ma trận đạo hàm $\nabla_{\mathbf{W}^{[l]}}\mathcal{L} \in \mathbb{R}^{n_l \times n_{l-1}}$ có phần tử tại hàng $j$, cột $k$ là $\dfrac{\partial\mathcal{L}}{\partial W_{jk}^{[l]}}$. Với $\boldsymbol{\Delta}^{[l]} \in \mathbb{R}^{n_l \times m}$ và $\left(\mathbf{A}^{[l-1]}\right)^{\top} \in \mathbb{R}^{m \times n_{l-1}}$, theo định nghĩa phép nhân ma trận và $\left[\left(\mathbf{A}^{[l-1]}\right)^{\top}\right]_{sk} = A_{ks}^{[l-1]}$:
+\begin{equation}
+\left[\boldsymbol{\Delta}^{[l]}\left(\mathbf{A}^{[l-1]}\right)^{\top}\right]_{jk} = \sum_{s=1}^{m}\Delta_{js}^{[l]}\left[\left(\mathbf{A}^{[l-1]}\right)^{\top}\right]_{sk} = \sum_{s=1}^{m}\Delta_{js}^{[l]}\,A_{ks}^{[l-1]}.
+\end{equation}
+So sánh với \eqref{eq:bpb_weight_component}, ta suy ra phương trình thứ tư:
+\begin{equation}
+\boxed{
+\nabla_{\mathbf{W}^{[l]}}\mathcal{L} = \boldsymbol{\Delta}^{[l]}\left(\mathbf{A}^{[l-1]}\right)^{\top} \in \mathbb{R}^{n_l \times n_{l-1}}
+}
+\label{eq:bpb_weight_matrix}
+\end{equation}
+Kích thước khớp nhau: $(n_l \times m)\cdot(m \times n_{l-1}) = n_l \times n_{l-1}$, đúng bằng kích thước của $\mathbf{W}^{[l]}$.
+ 
+\paragraph{Tổng các tích ngoài.} % [DẪN XUẤT]
+Gọi $\boldsymbol{\Delta}^{[l]}_{:,s}$ là cột thứ $s$ của $\boldsymbol{\Delta}^{[l]}$. Từ \eqref{eq:bpb_weight_component}, phần tử $(j,k)$ của $\nabla_{\mathbf{W}^{[l]}}\mathcal{L}$ là tổng theo $s$ của $\Delta_{js}^{[l]}A_{ks}^{[l-1]}$, chính là phần tử $(j,k)$ của tích ngoài giữa cột thứ $s$ của $\boldsymbol{\Delta}^{[l]}$ và cột thứ $s$ của $\mathbf{A}^{[l-1]}$. Kết hợp với \eqref{eq:bpb_delta_columns}:
+\begin{equation}
+\nabla_{\mathbf{W}^{[l]}}\mathcal{L} = \sum_{s=1}^{m}\boldsymbol{\Delta}^{[l]}_{:,s}\left(\mathbf{a}^{[l-1](s)}\right)^{\top} = \frac{1}{m}\sum_{s=1}^{m}\boldsymbol{\delta}^{[l](s)}\left(\mathbf{a}^{[l-1](s)}\right)^{\top}.
+\label{eq:bpb_weight_sum_outer}
+\end{equation}
+Mỗi số hạng $\boldsymbol{\delta}^{[l](s)}\left(\mathbf{a}^{[l-1](s)}\right)^{\top}$ chính là đạo hàm theo $\mathbf{W}^{[l]}$ của hàm mất mát $\mathcal{L}^{(s)}$ riêng của mẫu $s$ (phương trình thứ tư cho một mẫu). Vì vậy, gradient của hàm mất mát trên lô bằng trung bình cộng của các gradient của từng mẫu, và được tính đồng thời bằng một phép nhân ma trận thay vì $m$ phép tính riêng rẽ. Một hệ quả là ma trận $\nabla_{\mathbf{W}^{[l]}}\mathcal{L}$, là tổng của $m$ ma trận hạng không vượt quá $1$, có hạng không vượt quá $\min\{m, n_l, n_{l-1}\}$.
+ 
+\subsubsection{Tổng kết bốn phương trình nền tảng của lan truyền ngược trên một lô dữ liệu}
+Dưới các giả thiết đã nêu, các quan hệ đạo hàm cốt lõi của lan truyền ngược trên một lô gồm $m$ mẫu được tổng hợp thành bốn phương trình nền tảng:
+\begin{subequations}
+\label{eq:bpb_four_fundamental}
+\begin{align}
+    \boldsymbol{\Delta}^{[L]} &= \nabla_{\mathbf{A}^{[L]}}\mathcal{L} \odot {\sigma^{[L]}}'\!\left(\mathbf{Z}^{[L]}\right), \label{eq:bpb_output_error} \\[6pt]
+    \boldsymbol{\Delta}^{[l]} &= \left[ \left(\mathbf{W}^{[l+1]}\right)^{\top}\boldsymbol{\Delta}^{[l+1]} \right] \odot {\sigma^{[l]}}'\!\left(\mathbf{Z}^{[l]}\right), \label{eq:bpb_hidden_error} \\[6pt]
+    \nabla_{\mathbf{b}^{[l]}}\mathcal{L} &= \boldsymbol{\Delta}^{[l]}\mathbf{1}_m, \label{eq:bpb_bias_grad} \\[6pt]
+    \nabla_{\mathbf{W}^{[l]}}\mathcal{L} &= \boldsymbol{\Delta}^{[l]}\left(\mathbf{A}^{[l-1]}\right)^{\top}. \label{eq:bpb_weight_grad}
+\end{align}
+\end{subequations}
+Phương trình thứ hai áp dụng cho $l=L-1,\dots,1$; hai phương trình cuối áp dụng cho mọi $l=1,\dots,L$. Khi $m=1$, các ma trận kích hoạt và sai số chỉ có một cột, nên các hệ thức này trở về bốn phương trình của trường hợp một mẫu.
+\textbf{Trình tự thực hiện:}
+\begin{itemize}
+    \item \textbf{Lượt truyền xuôi} theo \eqref{eq:bpb_forward} được thực hiện trước, lưu lại $\mathbf{A}^{[0]}$, $\mathbf{Z}^{[l]}$ và $\mathbf{A}^{[l]}$ với $l = 1,\dots,L$.
+    \item \textbf{Phương trình thứ nhất} được áp dụng tại lớp đầu ra $L$ để xác định $\boldsymbol{\Delta}^{[L]}$.
+    \item \textbf{Phương trình thứ hai} được áp dụng lần lượt theo chiều ngược từ $l = L-1$ về $l = 1$ để xác định $\boldsymbol{\Delta}^{[l]}$ tại các lớp trước.
+    \item \textbf{Hai phương trình cuối} được áp dụng tại từng lớp $l$ sau khi xác định $\boldsymbol{\Delta}^{[l]}$, để tính gradient theo véc-tơ độ lệch và ma trận trọng số.
+\end{itemize}
+Tất cả gradient của một lượt lan truyền ngược phải được tính bằng cùng bộ tham số đã dùng trong lượt lan truyền tiến. Chỉ cập nhật tham số sau khi hoàn tất tính gradient; nếu cập nhật trọng số của lớp sau rồi dùng chúng để truyền sai số về lớp trước, kết quả không còn là gradient tại bộ tham số ban đầu.
+
+
+% \subsubsection{Quy ước chuẩn hóa và phạm vi áp dụng}
+
+% \paragraph{Một quy ước tương đương.}
+% Một số tài liệu gom các véc-tơ sai số của từng mẫu thành ma trận chưa lấy trung bình:
+% \begin{equation}
+% \mathbf{D}^{[l]}
+% = \begin{bmatrix}\boldsymbol{\delta}^{[l](1)}&\cdots&\boldsymbol{\delta}^{[l](m)}\end{bmatrix}
+% = m\boldsymbol{\Delta}^{[l]}.
+% \label{eq:bpb_alternative_delta}
+% \end{equation}
+% Khi dùng quy ước này, hai gradient theo tham số được viết thành
+% \begin{equation}
+% \nabla_{\mathbf{W}^{[l]}}\mathcal{L}
+% = \frac{1}{m}\mathbf{D}^{[l]}(\mathbf{A}^{[l-1]})^{\top},
+% \qquad
+% \nabla_{\mathbf{b}^{[l]}}\mathcal{L}
+% = \frac{1}{m}\mathbf{D}^{[l]}\mathbf{1}_m.
+% \label{eq:bpb_alternative_gradients}
+% \end{equation}
+% Hai quy ước cho kết quả như nhau. Cần xác định rõ sai số là đạo hàm của mất mát từng mẫu hay của mất mát trung bình trước khi đặt hệ số $1/m$.
+
+% \paragraph{Hàm kích hoạt không tác động theo từng phần tử.}
+% Với ánh xạ kích hoạt véc-tơ $\boldsymbol{\sigma}^{[L]}:\mathbb{R}^{n_L}\to\mathbb{R}^{n_L}$ xử lý riêng từng cột, chẳng hạn softmax, phương trình đầu ra tổng quát cho cột thứ $i$ là
+% \begin{equation}
+% \boldsymbol{\Delta}^{[L]}_{:,i}
+% = \left[\mathbf{J}_{\boldsymbol{\sigma}^{[L]}}(\mathbf{z}^{[L](i)})\right]^{\top}
+%   \frac{1}{m}\nabla_{\mathbf{a}^{[L](i)}}\mathcal{L}^{(i)},
+% \label{eq:bpb_output_jacobian}
+% \end{equation}
+% trong đó phần tử $(j,k)$ của ma trận Jacobian là
+% $[\mathbf{J}_{\boldsymbol{\sigma}^{[L]}}(\mathbf{z})]_{jk}
+% =\partial\sigma_j^{[L]}(\mathbf{z})/\partial z_k$.
+% Phép nhân Hadamard trong \eqref{eq:bpb_output} là trường hợp riêng khi Jacobian này có dạng đường chéo. Ngoài ra, các lập luận tách biệt theo cột không áp dụng trực tiếp khi mạng hoặc hàm mất mát có phép toán liên kết các mẫu, chẳng hạn batch normalization dùng thống kê của lô trong chế độ huấn luyện. Khi đó phải lấy đạo hàm cả các phụ thuộc giữa các cột.
+
+% \paragraph{Bổ sung số hạng chính quy hóa.}
+% Nếu hàm mục tiêu là
+% \begin{equation}
+% \mathcal{J}
+% =\mathcal{L}+\frac{\lambda}{2}\sum_{l=1}^{L}\|\mathbf{W}^{[l]}\|_F^2,
+% \qquad \lambda\geq 0,
+% \label{eq:bpb_regularized_objective}
+% \end{equation}
+% thì các sai số $\boldsymbol{\Delta}^{[l]}$ vẫn được tính từ mất mát dữ liệu $\mathcal{L}$, còn gradient theo tham số là
+% \begin{equation}
+% \nabla_{\mathbf{W}^{[l]}}\mathcal{J}
+% =\boldsymbol{\Delta}^{[l]}(\mathbf{A}^{[l-1]})^{\top}+\lambda\mathbf{W}^{[l]},
+% \qquad
+% \nabla_{\mathbf{b}^{[l]}}\mathcal{J}
+% =\boldsymbol{\Delta}^{[l]}\mathbf{1}_m.
+% \label{eq:bpb_regularized_gradients}
+% \end{equation}
+% Ở đây không chính quy hóa véc-tơ độ lệch. Chặn hạng $\min\{m,n_l,n_{l-1}\}$ nêu trên áp dụng cho gradient của mất mát dữ liệu; nó không nhất thiết áp dụng cho gradient của $\mathcal{J}$ sau khi cộng $\lambda\mathbf{W}^{[l]}$.
+
+\subsubsection{Tính toán minh họa lan truyền ngược cho một lô dữ liệu}
+Xét mạng nơ-ron truyền thẳng gồm $L=3$ lớp có tham số (hai lớp ẩn và một lớp đầu ra) với kiến trúc:
+\begin{itemize}
+    \item \textbf{Lớp đầu vào ($l=0$):} $n_0 = 3$ đặc trưng, kích thước lô dữ liệu là $m = 3$ mẫu.
+    \item \textbf{Lớp ẩn 1 ($l=1$):} $n_1 = 3$ nơ-ron, hàm kích hoạt ReLU.
+    \item \textbf{Lớp ẩn 2 ($l=2$):} $n_2 = 3$ nơ-ron, hàm kích hoạt ReLU.
+    \item \textbf{Lớp đầu ra ($l=3$):} $n_3 = 1$ nơ-ron, hàm kích hoạt ReLU.
+\end{itemize}
+
+\paragraph{1. Khởi tạo dữ liệu và tham số:}
+Ma trận lô dữ liệu đầu vào $\mathbf{A}^{[0]} \in \mathbb{R}^{3 \times 3}$:
+\begin{equation}
+\mathbf{A}^{[0]} =
+\begin{bmatrix}
+    1 & 2 & -1 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix}
+\end{equation}
+Mỗi cột là một mẫu:
+\[
+\mathbf{a}^{[0](1)} = \begin{bmatrix} 1 \\ 0 \\ -1 \end{bmatrix}, \qquad
+\mathbf{a}^{[0](2)} = \begin{bmatrix} 2 \\ 1 \\ 0 \end{bmatrix}, \qquad
+\mathbf{a}^{[0](3)} = \begin{bmatrix} -1 \\ 2 \\ 1 \end{bmatrix}.
+\]
+
+Trọng số và độ lệch tại \textbf{lớp 1}:
+\begin{equation}
+\mathbf{W}^{[1]} =
+\begin{bmatrix}
+    1 & 0 & -1 \\
+    0 & 1 & 1 \\
+    -1 & -1 & 0
+\end{bmatrix},
+\quad
+\mathbf{b}^{[1]} =
+\begin{bmatrix}
+    0 \\ -1 \\ 1
+\end{bmatrix}
+\end{equation}
+
+Trọng số và độ lệch tại \textbf{lớp 2}:
+\begin{equation}
+\mathbf{W}^{[2]} =
+\begin{bmatrix}
+    1 & -1 & 0 \\
+    0 & 1 & 2 \\
+    -1 & 0 & 1
+\end{bmatrix},
+\quad
+\mathbf{b}^{[2]} =
+\begin{bmatrix}
+    1 \\ -2 \\ 0
+\end{bmatrix}
+\end{equation}
+
+Trọng số và độ lệch tại \textbf{lớp đầu ra (lớp 3)}:
+\begin{equation}
+\mathbf{W}^{[3]} =
+\begin{bmatrix}
+    1 & 2 & -1
+\end{bmatrix},
+\quad
+\mathbf{b}^{[3]} =
+\begin{bmatrix}
+-1
+\end{bmatrix}
+\end{equation}
+
+\paragraph{2. Lan truyền tiến cho cả lô:}
+Để thực hiện lan truyền ngược, ta cần lưu lại các ma trận tiền kích hoạt $\mathbf{Z}^{[l]}$ và ma trận kích hoạt $\mathbf{A}^{[l]}$ tại mỗi lớp. 
+\begin{itemize}
+    \item \textbf{Tại lớp 1:}
+    \begin{align*}
+    \mathbf{Z}^{[1]} &= \mathbf{W}^{[1]}\mathbf{A}^{[0]} + \mathbf{b}^{[1]}\mathbf{1}_3^{\top} \\
+    &= \begin{bmatrix} 2 & 2 & -2 \\ -1 & 1 & 3 \\ -1 & -3 & -1 \end{bmatrix} + \begin{bmatrix} 0 & 0 & 0 \\ -1 & -1 & -1 \\ 1 & 1 & 1 \end{bmatrix} \\
+    &= \begin{bmatrix} 2 & 2 & -2 \\ -2 & 0 & 2 \\ 0 & -2 & 0 \end{bmatrix} \\
+    \mathbf{A}^{[1]} &= \operatorname{ReLU}\!\left(\mathbf{Z}^{[1]}\right) \\
+    &= \begin{bmatrix} 2 & 2 & 0 \\ 0 & 0 & 2 \\ 0 & 0 & 0 \end{bmatrix}
+    \end{align*}
+
+    \item \textbf{Tại lớp 2:}
+    \begin{align*}
+    \mathbf{Z}^{[2]} &= \mathbf{W}^{[2]}\mathbf{A}^{[1]} + \mathbf{b}^{[2]}\mathbf{1}_3^{\top} \\
+    &= \begin{bmatrix} 2 & 2 & -2 \\ 0 & 0 & 2 \\ -2 & -2 & 0 \end{bmatrix} + \begin{bmatrix} 1 & 1 & 1 \\ -2 & -2 & -2 \\ 0 & 0 & 0 \end{bmatrix} \\
+    &= \begin{bmatrix} 3 & 3 & -1 \\ -2 & -2 & 0 \\ -2 & -2 & 0 \end{bmatrix} \\
+    \mathbf{A}^{[2]} &= \operatorname{ReLU}\!\left(\mathbf{Z}^{[2]}\right) \\
+    &= \begin{bmatrix} 3 & 3 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}
+    \end{align*}
+
+    \item \textbf{Tại lớp 3 (Đầu ra):}
+    \begin{align*}
+    \mathbf{Z}^{[3]} &= \mathbf{W}^{[3]}\mathbf{A}^{[2]} + \mathbf{b}^{[3]}\mathbf{1}_3^{\top} \\
+    &= \begin{bmatrix} 3 & 3 & 0 \end{bmatrix} + \begin{bmatrix} -1 & -1 & -1 \end{bmatrix} \\
+    &= \begin{bmatrix} 2 & 2 & -1 \end{bmatrix} \\
+    \mathbf{A}^{[3]} &= \operatorname{ReLU}\!\left(\mathbf{Z}^{[3]}\right) \\
+    &= \begin{bmatrix} 2 & 2 & 0 \end{bmatrix}
+    \end{align*}
+\end{itemize}
+
+\paragraph{3. Tính hàm mất mát trên lô:}
+Giả sử ma trận nhãn thực tế của lô dữ liệu là $\mathbf{Y} = \begin{bmatrix} 1 & 4 & 2 \end{bmatrix}$, tức $y^{(1)} = 1$, $y^{(2)} = 4$, $y^{(3)} = 2$. Ta sử dụng hàm mất mát nửa bình phương sai số cho từng mẫu, $\mathcal{L}^{(i)} = \frac{1}{2}\left(a^{[3](i)} - y^{(i)}\right)^2$, và hàm mất mát trên lô là
+\begin{equation}
+\mathcal{L}=\frac{1}{2m}\|\mathbf{A}^{[3]}-\mathbf{Y}\|_F^2.
+\label{eq:bpb_example_loss}
+\end{equation}
+Đây là trung bình theo $m$ mẫu của nửa bình phương sai số:
+\begin{align*}
+\mathcal{L}^{(1)} &= \tfrac{1}{2}(2 - 1)^2 = 0.5, \\
+\mathcal{L}^{(2)} &= \tfrac{1}{2}(2 - 4)^2 = 2, \\
+\mathcal{L}^{(3)} &= \tfrac{1}{2}(0 - 2)^2 = 2, \\
+\mathcal{L} &= \frac{1}{3}\left(0.5 + 2 + 2\right) = 1.5.
+\end{align*}
+
+\paragraph{4. Tính toán lan truyền ngược cho cả lô:}
+Hàm $\operatorname{ReLU}(z)=\max\{0,z\}$ khả vi khi $z\neq 0$ và không khả vi tại $z=0$. Trong ví dụ này, một số phần tử của $\mathbf{Z}^{[1]}$ và $\mathbf{Z}^{[2]}$ bằng $0$. Vì vậy, để xác định kết quả lan truyền ngược, ta chọn hệ số cục bộ
+\begin{equation}
+r(z)=\begin{cases}1,&z>0,\\0,&z\leq 0.\end{cases}
+\label{eq:bpb_relu_rule}
+\end{equation}
+Với $z\neq 0$, $r(z)=\operatorname{ReLU}'(z)$; còn $r(0)=0$ là một quy ước tính toán. Giá trị $0$ thuộc tập dưới vi phân $\partial\operatorname{ReLU}(0)=[0,1]$ của hàm ReLU lồi, nhưng điều này không cho phép khẳng định rằng mọi kết quả truyền ngược của toàn bộ mạng là gradient cổ điển hoặc dưới gradient của một hàm mất mát lồi. Từ các ma trận tiền kích hoạt ở bước 2, các ma trận hệ số cục bộ là:
+\begin{align*}
+r\!\left(\mathbf{Z}^{[1]}\right) &= \begin{bmatrix} 1 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 0 & 0 \end{bmatrix}, \\
+r\!\left(\mathbf{Z}^{[2]}\right) &= \begin{bmatrix} 1 & 1 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}, \\
+r\!\left(\mathbf{Z}^{[3]}\right) &= \begin{bmatrix} 1 & 1 & 0 \end{bmatrix}.
+\end{align*}
+Để phân biệt với các đạo hàm đã chứng minh trong trường hợp khả vi, ký hiệu $\mathbf{G}_A^{[l]}$ là đại lượng truyền ngược tại kích hoạt và $\widetilde{\boldsymbol{\Delta}}^{[l]}$ là đại lượng truyền ngược tại tiền kích hoạt theo quy ước \eqref{eq:bpb_relu_rule}. Cụ thể,
+\begin{equation}
+\mathbf{G}_A^{[3]}=\frac{1}{m}(\mathbf{A}^{[3]}-\mathbf{Y}),
+\qquad
+\widetilde{\boldsymbol{\Delta}}^{[l]}=\mathbf{G}_A^{[l]}\odot r(\mathbf{Z}^{[l]}),
+\label{eq:bpb_example_adjoint}
+\end{equation}
+với $\mathbf{G}_A^{[l]}=(\mathbf{W}^{[l+1]})^{\top}\widetilde{\boldsymbol{\Delta}}^{[l+1]}$ khi $l=2,1$. Ký hiệu $\mathbf{G}_W^{[l]}$ và $\mathbf{g}_b^{[l]}$ là các đại lượng theo tham số thu được từ lượt truyền ngược này. Khi mọi phép toán liên quan đều khả vi, chúng trùng với gradient tương ứng. Tất cả các đại lượng trên đã mang nhân tử $1/m=1/3$ từ mất mát trung bình, nên không chia thêm cho $m$ khi tính $\mathbf{G}_W^{[l]}$ và $\mathbf{g}_b^{[l]}$.
+\begin{itemize}
+    \item \textbf{Tại lớp 3 (lớp đầu ra):}
+    \begin{align*}
+    \mathbf{G}_A^{[3]} &= \frac{1}{m}\left(\mathbf{A}^{[3]} - \mathbf{Y}\right) \\
+    &= \frac{1}{3}\begin{bmatrix} 2-1 & 2-4 & 0-2 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & -2 \end{bmatrix} \\
+    \widetilde{\boldsymbol{\Delta}}^{[3]} &= \mathbf{G}_A^{[3]} \odot r\!\left(\mathbf{Z}^{[3]}\right) \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & -2 \end{bmatrix} \odot \begin{bmatrix} 1 & 1 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \end{bmatrix}
+    \end{align*}
+
+    Kết quả truyền ngược theo trọng số và độ lệch tại lớp 3:
+    \begin{align*}
+    \mathbf{G}_W^{[3]} &= \widetilde{\boldsymbol{\Delta}}^{[3]}\left(\mathbf{A}^{[2]}\right)^{\top} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \end{bmatrix}\begin{bmatrix} 3 & 0 & 0 \\ 3 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} -3 & 0 & 0 \end{bmatrix} \\
+    &= \begin{bmatrix} -1 & 0 & 0 \end{bmatrix} \\
+    \mathbf{g}_b^{[3]} &= \widetilde{\boldsymbol{\Delta}}^{[3]}\mathbf{1}_3 \\*
+    &= \frac{1}{3}\left(1 - 2 + 0\right) \\*
+    &= \begin{bmatrix}-\frac{1}{3}\end{bmatrix}
+    \end{align*}
+
+    \item \textbf{Tại lớp 2:}
+    Lan truyền sai số về lớp 2:
+    \begin{align*}
+    \mathbf{G}_A^{[2]} &= \left(\mathbf{W}^{[3]}\right)^{\top} \widetilde{\boldsymbol{\Delta}}^{[3]} \\
+    &= \begin{bmatrix} 1 \\ 2 \\ -1 \end{bmatrix} \cdot \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 2 & -4 & 0 \\ -1 & 2 & 0 \end{bmatrix}
+    \end{align*}
+    Đại lượng truyền ngược tại $\mathbf{Z}^{[2]}$:
+    \begin{align*}
+    \widetilde{\boldsymbol{\Delta}}^{[2]} &= \mathbf{G}_A^{[2]} \odot r\!\left(\mathbf{Z}^{[2]}\right) \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 2 & -4 & 0 \\ -1 & 2 & 0 \end{bmatrix} \odot \begin{bmatrix} 1 & 1 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}
+    \end{align*}
+    Kết quả truyền ngược theo trọng số và độ lệch tại lớp 2:
+    \begin{align*}
+    \mathbf{G}_W^{[2]} &= \widetilde{\boldsymbol{\Delta}}^{[2]}\left(\mathbf{A}^{[1]}\right)^{\top} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}\begin{bmatrix} 2 & 0 & 0 \\ 2 & 0 & 0 \\ 0 & 2 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} -2 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix} \\
+    \mathbf{g}_b^{[2]} &= \widetilde{\boldsymbol{\Delta}}^{[2]}\mathbf{1}_3 \\
+    &= \frac{1}{3}\begin{bmatrix} 1 - 2 + 0 \\ 0 \\ 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} -1 \\ 0 \\ 0 \end{bmatrix}
+    \end{align*}
+
+    \item \textbf{Tại lớp 1:}
+    Lan truyền sai số về lớp 1:
+    \begin{align*}
+    \mathbf{G}_A^{[1]} &= \left(\mathbf{W}^{[2]}\right)^{\top} \widetilde{\boldsymbol{\Delta}}^{[2]} \\
+    &= \begin{bmatrix} 1 & 0 & -1 \\ -1 & 1 & 0 \\ 0 & 2 & 1 \end{bmatrix} \cdot \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ -1 & 2 & 0 \\ 0 & 0 & 0 \end{bmatrix}
+    \end{align*}
+    Đại lượng truyền ngược tại $\mathbf{Z}^{[1]}$:
+    \begin{align*}
+    \widetilde{\boldsymbol{\Delta}}^{[1]} &= \mathbf{G}_A^{[1]} \odot r\!\left(\mathbf{Z}^{[1]}\right) \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ -1 & 2 & 0 \\ 0 & 0 & 0 \end{bmatrix} \odot \begin{bmatrix} 1 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 0 & 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}
+    \end{align*}
+    Kết quả truyền ngược theo trọng số và độ lệch tại lớp 1 (với $\mathbf{A}^{[0]}$ là ma trận lô dữ liệu đầu vào):
+    \begin{align*}
+    \mathbf{G}_W^{[1]} &= \widetilde{\boldsymbol{\Delta}}^{[1]}\left(\mathbf{A}^{[0]}\right)^{\top} \\
+    &= \frac{1}{3}\begin{bmatrix} 1 & -2 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}\begin{bmatrix} 1 & 0 & -1 \\ 2 & 1 & 0 \\ -1 & 2 & 1 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} -3 & -2 & -1 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix} \\
+    \mathbf{g}_b^{[1]} &= \widetilde{\boldsymbol{\Delta}}^{[1]}\mathbf{1}_3 \\
+    &= \frac{1}{3}\begin{bmatrix} 1 - 2 + 0 \\ 0 \\ 0 \end{bmatrix} \\
+    &= \frac{1}{3}\begin{bmatrix} -1 \\ 0 \\ 0 \end{bmatrix}
+    \end{align*}
+\end{itemize}
+
+\paragraph{5. Tổng hợp kết quả lan truyền ngược:}
+Các đại lượng theo tham số thu được bằng quy ước $r(0)=0$ được tổng hợp như sau:
+\begin{align*}
+\mathbf{G}_W^{[3]} &= \begin{bmatrix} -1 & 0 & 0 \end{bmatrix}, & \mathbf{g}_b^{[3]} &= \begin{bmatrix} -\frac{1}{3} \end{bmatrix} \\
+\mathbf{G}_W^{[2]} &= \frac{1}{3}\begin{bmatrix} -2 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}, & \mathbf{g}_b^{[2]} &= \frac{1}{3}\begin{bmatrix} -1 \\ 0 \\ 0 \end{bmatrix} \\
+\mathbf{G}_W^{[1]} &= \frac{1}{3}\begin{bmatrix} -3 & -2 & -1 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{bmatrix}, & \mathbf{g}_b^{[1]} &= \frac{1}{3}\begin{bmatrix} -1 \\ 0 \\ 0 \end{bmatrix}
+\end{align*}
+
+\paragraph{6. Phân biệt quy ước lan truyền ngược với đạo hàm cổ điển.}
+Trong ví dụ này, vấn đề tại $z=0$ thực sự ảnh hưởng đến tính khả vi của hàm mất mát theo tham số. Để thấy điều đó, chỉ thay thành phần thứ hai của $\mathbf{b}^{[1]}$ từ $-1$ thành $-1+t$, giữ nguyên mọi tham số khác, và ký hiệu $F(t)$ là mất mát trên lô sau thay đổi. Với $|t|<1/2$, dự đoán của mẫu thứ nhất vẫn bằng $2$, dự đoán của mẫu thứ ba vẫn bằng $0$, còn dự đoán của mẫu thứ hai là $2-\max\{0,t\}$. Do đó
+\begin{equation}
+F(t)=\frac{3}{2}+\frac{2}{3}\max\{0,t\}
+                  +\frac{1}{6}\bigl(\max\{0,t\}\bigr)^2.
+\label{eq:bpb_example_nondifferentiability}
+\end{equation}
+Suy ra các đạo hàm một phía
+\begin{equation}
+F'_-(0)=0,\qquad F'_+(0)=\frac{2}{3}.
+\label{eq:bpb_example_one_sided}
+\end{equation}
+Hai giá trị khác nhau, nên $F'(0)$ không tồn tại; vì vậy $\partial\mathcal{L}/\partial b_2^{[1]}$ cũng không tồn tại tại bộ tham số đang xét. Trong khi đó, quy ước $r(0)=0$ cho $[\mathbf{g}_b^{[1]}]_2=0$. Như vậy, các ma trận ở bước 5 đúng theo quy ước lan truyền ngược đã chọn, nhưng không thể gọi toàn bộ chúng là gradient cổ điển của $\mathcal{L}$ tại điểm này. Nếu muốn ví dụ minh họa thuần túy các công thức đạo hàm trong trường hợp khả vi, cần chọn lại tham số để mọi tiền kích hoạt đều khác $0$, hoặc dùng hàm kích hoạt khả vi.
+
+\paragraph{7. Ý nghĩa của sai số bằng không ở mẫu thứ ba.}
+Mẫu thứ ba có mất mát $\mathcal{L}^{(3)}=2$, nhưng $Z_{13}^{[3]}=-1<0$, nên hệ số ReLU ở đầu ra bằng $0$ và mẫu này đóng góp $0$ vào tất cả các đại lượng truyền ngược theo tham số tại bộ tham số đang xét. Đây là hệ quả cục bộ của đầu ra ReLU đang ở miền âm; mất mát dương không nhất thiết kéo theo đại lượng truyền ngược khác $0$. Kết quả này không có nghĩa mẫu thứ ba không ảnh hưởng đến mất mát, cũng không có nghĩa đầu ra của nó luôn bằng $0$ sau những lần cập nhật tham số tiếp theo.

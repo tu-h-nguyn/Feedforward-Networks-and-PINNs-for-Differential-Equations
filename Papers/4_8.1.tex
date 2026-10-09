@@ -1,0 +1,512 @@
+\section{Mạng nơ-ron tích hợp thông tin vật lý}
+\label{chap:pinn}
+Mạng nơ-ron tích hợp thông tin vật lý (PINN), sử dụng một họ hàm
+tham số hóa để xấp xỉ nghiệm phương trình vi phân. Thông tin về phương trình,
+điều kiện đầu, điều kiện biên và các quan trắc được đưa vào quá trình xác
+định tham số. Trong cách xây dựng bằng phần dư mạnh, bài toán vi phân được
+chuyển thành một bài toán bình phương tối thiểu phi tuyến.
+
+Chương này gồm ba nội dung. Mục~\ref{sec:cau-truc-loss} xây dựng hàm mất
+mát và phân biệt phần dư tại các điểm lấy mẫu với sai số nghiệm trên toàn
+miền. Mục~\ref{sec:gradient-pathology} phân tích hình học của hàm mất mát
+trong không gian tham số, sự mất cân bằng giữa các građien thành phần và
+cơ chế điều chỉnh trọng số. Mục~\ref{sec:spectral-bias} trình bày thiên
+kiến phổ, đồng thời phân biệt khả năng biểu diễn của mạng với tốc độ học
+các thành phần tần số. Ba cơ sở tài liệu chính lần lượt là công trình của
+Raissi và cộng sự~\cite{raissi2019}, Wang và cộng sự~\cite{wang2021},
+Rahaman và cộng sự~\cite{rahaman2019}. Các mệnh đề có chứng minh trong
+chương được phát biểu với giả thiết riêng, không được hiểu là các bảo đảm
+tổng quát cho mọi bài toán PINN.
+
+\section{Cấu trúc hàm mất mát trong PINN}
+\label{sec:cau-truc-loss}
+
+\subsection{Bài toán vi phân và họ hàm xấp xỉ}
+
+Cho miền bị chặn $\Omega\subset\mathbb{R}^{d}$ có biên đủ chính quy và
+$T>0$. Đặt $Q=\Omega\times(0,T)$,
+$\Sigma=\partial\Omega\times(0,T)$. Xét bài toán
+\begin{align}
+ \partial_tu(\mathbf{x},t)+\mathcal{N}[u;\boldsymbol{\zeta}](\mathbf{x},t)
+ &=f(\mathbf{x},t), &&(\mathbf{x},t)\in Q,\label{p4:eq:pde}\\
+ u(\mathbf{x},0)&=u_0(\mathbf{x}),&&\mathbf{x}\in\Omega,\label{p4:eq:ic}\\
+ \mathcal{B}[u](\mathbf{x},t)&=g(\mathbf{x},t),&&
+                   (\mathbf{x},t)\in\Sigma.\label{p4:eq:bc}
+\end{align}
+Trong đó, $u$ là nghiệm cần tìm; $\mathbf{x}$ và $t$ lần lượt là tọa độ
+không gian và thời gian vật lý; $d$ là số chiều không gian;
+$\mathcal{N}$ là toán tử vi phân theo không gian, có thể phi tuyến;
+$\boldsymbol{\zeta}$ là vectơ hệ số vật lý; $f$ là nguồn đã biết;
+$u_0$ là dữ kiện đầu; $\mathcal{B}$ là toán tử biên và $g$ là dữ kiện biên.
+Ví dụ, $\mathcal{B}[u]=u$ cho điều kiện Dirichlet, còn
+$\mathcal{B}[u]=\nabla_{\mathbf{x}}u\cdot\mathbf{n}$ cho điều kiện Neumann,
+với $\mathbf{n}$ là pháp tuyến đơn vị hướng ra ngoài.
+
+Ta giả thiết bài toán đang xét có nghiệm trong một không gian hàm thích
+hợp. Tính duy nhất và ổn định phải được xác lập theo từng phương trình
+và từng chuẩn sai số; việc xây dựng một hàm mất mát không tự nó chứng minh
+các tính chất đó.
+
+Xấp xỉ $u$ bằng mạng truyền thẳng $u_{\boldsymbol{\theta}}$ với đầu vào
+$\mathbf{z}=(\mathbf{x},t)\in\mathbb{R}^{d+1}$. Một quy ước cụ thể là
+\begin{align}
+ \mathbf{a}^{[0]}&=\mathbf{z},\notag\\
+ \mathbf{a}^{[l]}&=\sigma\!\left(\mathbf{W}^{[l]}\mathbf{a}^{[l-1]}
+                                     +\mathbf{b}^{[l]}\right),
+                       &&l=1,\ldots,D-1,\notag\\
+ u_{\boldsymbol{\theta}}(\mathbf{z})
+ &=\mathbf{W}^{[D]}\mathbf{a}^{[D-1]}+b^{[D]}.
+ \label{p4:eq:network}
+\end{align}
+Trong đó, $D$ là số lớp có tham số, lớp cuối có một đầu ra;
+$\mathbf{W}^{[l]}\in\mathbb{R}^{n_l\times n_{l-1}}$ và
+$\mathbf{b}^{[l]}\in\mathbb{R}^{n_l}$ là trọng số và độ lệch;
+$n_0=d+1$, $n_D=1$; $\sigma$ tác động lên từng thành phần.
+Vectơ $\boldsymbol{\theta}\in\mathbb{R}^{P}$ ghép tất cả các tham số,
+với $P=\sum_{l=1}^{D}n_l(n_{l-1}+1)$. Chỉ số lớp luôn viết trong ngoặc
+vuông; chỉ số $k$ ở $\boldsymbol{\theta}_k$ về sau chỉ bước tối ưu.
+
+\subsection{Phần dư và vai trò của vi phân tự động}
+
+\begin{definition}[Phần dư mạnh]
+Giả sử mạng có đủ các đạo hàm xuất hiện trong \eqref{p4:eq:pde}.
+Phần dư của phương trình tại bộ tham số $\boldsymbol{\theta}$ là
+\begin{equation}
+ r_{\boldsymbol{\theta},\boldsymbol{\zeta}}(\mathbf{x},t)
+ :=\partial_tu_{\boldsymbol{\theta}}(\mathbf{x},t)
+ +\mathcal{N}[u_{\boldsymbol{\theta}};\boldsymbol{\zeta}](\mathbf{x},t)
+ -f(\mathbf{x},t).
+ \label{p4:eq:residual}
+\end{equation}
+\end{definition}
+Khi hệ số vật lý đã biết, ta viết gọn $r_{\boldsymbol{\theta}}$.
+Phần dư bằng không có nghĩa mạng thỏa phương trình tại điểm đang xét;
+điều này chưa bao gồm điều kiện đầu và điều kiện biên.
+
+Chẳng hạn, phương trình Burgers có độ nhớt $\nu>0$ và nguồn bằng không
+cho
+\begin{equation}
+ r_{\boldsymbol{\theta}}
+ =\partial_tu_{\boldsymbol{\theta}}
+ +u_{\boldsymbol{\theta}}\partial_xu_{\boldsymbol{\theta}}
+ -\nu\partial_{xx}u_{\boldsymbol{\theta}}.
+ \label{p4:eq:burgers-residual}
+\end{equation}
+Ba số hạng lần lượt biểu diễn biến thiên theo thời gian, vận chuyển phi
+tuyến và khuếch tán. Theo cách xây dựng của Raissi và cộng
+sự~\cite{raissi2019,raissi2017a}, các đạo hàm này được tính từ cùng mạng
+$u_{\boldsymbol{\theta}}$ bằng quy tắc dây chuyền trên đồ thị tính toán.
+Phần dư không phải một mạng độc lập có bộ trọng số riêng.
+
+Cần phân biệt đạo hàm theo đầu vào với đạo hàm theo tham số. Để tính
+phần dư, ta dùng $\partial_xu_{\boldsymbol{\theta}}$ và
+$\partial_{xx}u_{\boldsymbol{\theta}}$; để huấn luyện, ta còn cần các
+đạo hàm như $\partial_{\theta_p}\partial_{xx}u_{\boldsymbol{\theta}}$,
+trong đó $\theta_p$ là tham số thứ $p$. Vi phân tự động không sử dụng
+bước sai phân, nhưng vẫn chịu sai số làm tròn và sai số do điều kiện
+số của đồ thị tính toán. Chi phí đạo hàm bậc cao và đạo hàm hỗn hợp
+cũng cần được tính vào chi phí huấn luyện.
+
+Với phương trình bậc $m$ theo không gian, một điều kiện đủ thuận tiện
+cho phần dư cổ điển là chọn các hàm kích hoạt thuộc $C^m$; dùng
+$\tanh$ còn bảo đảm tính trơn ở mọi bậc hữu hạn. Điều kiện này không
+phải một định lý rằng mọi đạo hàm bậc cao đều khác không. Ngược lại,
+mạng dùng hàm tuyến tính chỉnh lưu ReLU, $\sigma(z)=\max\{0,z\}$, là hàm afin liên tục từng
+khúc, nên đạo hàm không gian bậc hai bằng không bên trong mỗi miền
+tuyến tính. Với phần dư Poisson thuần túy $-u_{\boldsymbol{\theta}}''-f$,
+điều này có thể làm mất thông tin về độ cong tại các điểm phối trí nằm
+ngoài điểm gãy. Tuy nhiên, các số hạng điều kiện biên, dữ liệu hoặc
+đạo hàm bậc nhất vẫn có thể có građien tham số khác không. Do đó không
+thể kết luận toàn bộ hàm mất mát của mọi PINN dùng ReLU đều là hằng số.
+
+\subsection{Điểm phối trí và chiến lược lấy mẫu}
+
+Chọn các tập hữu hạn
+\begin{align}
+ \mathcal{T}_r&=\{(\mathbf{x}_r^i,t_r^i)\}_{i=1}^{N_r}\subset Q,\notag\\
+ \mathcal{T}_0&=\{\mathbf{x}_0^i\}_{i=1}^{N_0}\subset\Omega,\notag\\
+ \mathcal{T}_b&=\{(\mathbf{x}_b^i,t_b^i)\}_{i=1}^{N_b}\subset\Sigma.
+ \label{p4:eq:sets}
+\end{align}
+Trong đó, $N_r,N_0,N_b$ là số điểm tương ứng. Các điểm trong
+$\mathcal{T}_r$ gọi là điểm phối trí: không cần biết nghiệm đúng tại
+đó, vì giá trị đích của phần dư là không. Tại $\mathcal{T}_0$ và
+$\mathcal{T}_b$, dữ kiện được cung cấp bởi $u_0$ và $g$.
+
+Trên miền hộp đã chuẩn hóa thành $[0,1]^{d+1}$, lấy mẫu siêu khối Latin
+có thể được mô tả bởi
+\begin{equation}
+ z_{ij}=\frac{\pi_j(i)-1+U_{ij}}{N_r},
+ \qquad i=1,\ldots,N_r,\quad j=1,\ldots,d+1.
+ \label{p4:eq:lhs}
+\end{equation}
+Ở đây, $\pi_j$ là một hoán vị ngẫu nhiên của $\{1,\ldots,N_r\}$;
+$U_{ij}$ phân bố đều trên $(0,1)$; các hoán vị theo chiều và các biến
+$U_{ij}$ được chọn độc lập. Mỗi khoảng phân tầng trên một trục chứa
+đúng một tọa độ mẫu. Đây là ý nghĩa chính xác của sự phân bố đều theo
+từng chiều, không phải bảo đảm rằng mọi miền con nhiều chiều đều chứa
+điểm. Raissi và cộng sự dùng cách lấy mẫu này trong thí nghiệm
+Burgers~\cite{raissi2017a}.
+
+Các điểm trong một thiết kế Latin không độc lập với nhau. Vì vậy,
+không áp dụng trực tiếp công thức phương sai dành cho các điểm độc lập
+cho thiết kế này. Lấy mẫu ngẫu nhiên độc lập, lấy mẫu phân tầng và các
+dãy tựa ngẫu nhiên cũng không có hiệu quả tương đương trên mọi hàm:
+hiệu quả phụ thuộc tính trơn, số chiều và sự tập trung của phần dư.
+Với lớp biên mỏng, cần kiểm tra số điểm thực sự nằm trong lớp, thay vì
+chỉ dựa vào tổng số điểm trên toàn miền.
+
+\subsection{Hàm mất mát rời rạc và việc chọn trọng số}
+
+Định nghĩa các thành phần
+\begin{align}
+ J_{r,N_r}(\boldsymbol{\theta})
+ &=\frac{1}{N_r}\sum_{i=1}^{N_r}
+       |r_{\boldsymbol{\theta}}(\mathbf{x}_r^i,t_r^i)|^2,
+       \label{p4:eq:loss-r}\\
+ J_{0,N_0}(\boldsymbol{\theta})
+ &=\frac{1}{N_0}\sum_{i=1}^{N_0}
+       |u_{\boldsymbol{\theta}}(\mathbf{x}_0^i,0)-u_0(\mathbf{x}_0^i)|^2,
+       \label{p4:eq:loss-0}\\
+ J_{b,N_b}(\boldsymbol{\theta})
+ &=\frac{1}{N_b}\sum_{i=1}^{N_b}
+       |\mathcal{B}[u_{\boldsymbol{\theta}}](\mathbf{x}_b^i,t_b^i)
+                                  -g(\mathbf{x}_b^i,t_b^i)|^2.
+       \label{p4:eq:loss-b}
+\end{align}
+Trong đó, trị tuyệt đối áp dụng cho phương trình vô hướng; với hệ
+phương trình có thể thay bằng chuẩn Euclid và chỉ rõ cách cân bằng
+các phương trình. Chỉ số $N_r,N_0,N_b$ nhấn mạnh sự phụ thuộc vào tập
+lấy mẫu. Ta viết $J_r,J_0,J_b$ khi không có nguy cơ nhầm lẫn.
+
+Hàm mất mát tổng hợp là
+\begin{equation}
+ J_N(\boldsymbol{\theta})=
+ \lambda_rJ_{r,N_r}(\boldsymbol{\theta})+
+ \lambda_0J_{0,N_0}(\boldsymbol{\theta})+
+ \lambda_bJ_{b,N_b}(\boldsymbol{\theta}),
+ \qquad \lambda_r,\lambda_0,\lambda_b>0.
+ \label{p4:eq:loss-total}
+\end{equation}
+Ký hiệu $N$ đại diện cho bộ kích thước lấy mẫu; các $\lambda$ là trọng
+số. Phép chia cho số điểm biến tổng thành trung bình, tránh tăng trọng
+số của một thành phần chỉ vì tăng số điểm của nó. Tuy vậy, phép chia
+này không tự động cân bằng đơn vị vật lý hoặc độ lớn građien.
+
+Ví dụ, với phép đổi biến $x=\ell\widehat x$, $t=\tau\widehat t$,
+$u=U\widehat u$, phương trình Burgers trở thành
+\begin{equation}
+ \partial_{\widehat t}\widehat u+
+ \frac{U\tau}{\ell}\widehat u\,\partial_{\widehat x}\widehat u
+ -\frac{\nu\tau}{\ell^2}\partial_{\widehat x\widehat x}\widehat u=0.
+ \label{p4:eq:nondimensional}
+\end{equation}
+Trong đó, $\ell,\tau,U>0$ là các thang không gian, thời gian và nghiệm.
+Công thức suy ra bằng cách thay lần lượt
+$u_t=(U/\tau)\widehat u_{\widehat t}$,
+$u_x=(U/\ell)\widehat u_{\widehat x}$,
+$u_{xx}=(U/\ell^2)\widehat u_{\widehat x\widehat x}$ rồi chia cho
+$U/\tau$. Vì việc đổi đơn vị có thể thay đổi mất mát phần dư theo bình
+phương hệ số tỉ lệ, nên cần chọn thang đo hoặc khử thứ nguyên trước
+khi giải thích các trọng số là mức ưu tiên của từng ràng buộc.
+
+Mục tiêu tính toán là tìm $\widehat{\boldsymbol{\theta}}$ sao cho
+\begin{equation}
+ J_N(\widehat{\boldsymbol{\theta}})
+ \leq\inf_{\boldsymbol{\theta}\in\Theta}J_N(\boldsymbol{\theta})
+                  +\varepsilon_{\mathrm{opt}},
+ \qquad \varepsilon_{\mathrm{opt}}\geq0.
+ \label{p4:eq:approx-opt}
+\end{equation}
+Ở đây $\Theta\subseteq\mathbb{R}^{P}$ là tập tham số được xét và
+$\varepsilon_{\mathrm{opt}}$ là sai số tối ưu. Ký hiệu cận dưới đúng không
+đòi hỏi cực tiểu phải đạt được. Chỉ khi đã có tính đạt cực tiểu mới
+viết $\boldsymbol{\theta}^{*}\in\arg\min J_N$.
+Trong thực hành thường không biết $\inf J_N$, nên số bước tối ưu hoặc
+chuẩn građien nhỏ chưa đủ để xác nhận một giá trị
+$\varepsilon_{\mathrm{opt}}$ cụ thể trong \eqref{p4:eq:approx-opt}.
+
+\subsection{Từ tổng hữu hạn đến chuẩn phần dư trên toàn miền}
+
+Gọi $\mu_r$ là phân phối xác suất dùng làm chuẩn đánh giá trên $Q$.
+Hàm mất mát phần dư liên tục là
+\begin{equation}
+ \mathcal{J}_r(\boldsymbol{\theta})
+ =\int_Q|r_{\boldsymbol{\theta}}(\mathbf{z})|^2\,\mathrm{d}\mu_r(\mathbf{z}).
+ \label{p4:eq:population-r}
+\end{equation}
+Với phân phối đều, $\mathrm{d}\mu_r=\mathrm{d}\mathbf{x}\,\mathrm{d}t/(|\Omega|T)$,
+nên $\mathcal{J}_r=\|r_{\boldsymbol{\theta}}\|_{L^2(Q)}^2/(|\Omega|T)$.
+Tương tự, định nghĩa $\mathcal{J}_0,\mathcal{J}_b$ bằng tích phân theo
+các phân phối trên lát đầu và biên, rồi đặt
+$\mathcal{J}=\lambda_r\mathcal{J}_r+\lambda_0\mathcal{J}_0+
+\lambda_b\mathcal{J}_b$. Với $d=1$, phân phối trên biên có thể chọn đều
+trên hai đầu mút và đều theo thời gian.
+
+Nếu $\mathbf{Z}_1,\ldots,\mathbf{Z}_{N_r}$ độc lập, cùng phân phối
+$\mu_r$, và $\boldsymbol{\theta}$ cố định, tính tuyến tính của kỳ vọng cho
+\begin{equation}
+ \mathbb{E}[J_{r,N_r}(\boldsymbol{\theta})]
+ =\frac{1}{N_r}\sum_{i=1}^{N_r}
+       \mathbb{E}|r_{\boldsymbol{\theta}}(\mathbf{Z}_i)|^2
+ =\mathcal{J}_r(\boldsymbol{\theta}).
+ \label{p4:eq:unbiased}
+\end{equation}
+Nếu phần dư thuộc $L^2(\mu_r)$, luật số lớn mạnh còn cho
+$J_{r,N_r}(\boldsymbol{\theta})\to\mathcal{J}_r(\boldsymbol{\theta})$
+gần chắc chắn khi $N_r\to\infty$. Nếu thêm
+$r_{\boldsymbol{\theta}}\in L^4(\mu_r)$, tính độc lập cho
+\begin{equation}
+ \operatorname{Var}[J_{r,N_r}(\boldsymbol{\theta})]
+ =\frac{\operatorname{Var}(|r_{\boldsymbol{\theta}}(\mathbf{Z}_1)|^2)}{N_r}.
+ \label{p4:eq:mc-variance}
+\end{equation}
+Trong đó, $\mathbb{E}$ và $\operatorname{Var}$ lần lượt là kỳ vọng và
+phương sai theo phép lấy mẫu. Điều kiện $L^4$ bảo đảm phương sai ở tử
+số hữu hạn; chỉ giả thiết $L^2$ chưa đủ cho kết luận phương sai này.
+
+Khi $\widehat{\boldsymbol{\theta}}$ được tối ưu trên chính tập phối trí,
+không thể thay nó vào \eqref{p4:eq:unbiased} mà không xét sự phụ thuộc
+giữa tham số và mẫu. Sự phụ thuộc ấy có thể gây đánh giá quá lạc quan,
+nhưng không chứng minh rằng từng thành phần mất mát luôn bị chệch
+xuống trong mọi thuật toán. Một tập kiểm tra mới, độc lập với quá trình
+chọn mạng, cho đẳng thức có điều kiện
+\begin{equation}
+ \mathbb{E}\!\left[J^{\mathrm{test}}_{r,M}
+  (\widehat{\boldsymbol{\theta}})\mid\widehat{\boldsymbol{\theta}}\right]
+ =\mathcal{J}_r(\widehat{\boldsymbol{\theta}}).
+ \label{p4:eq:test-unbiased}
+\end{equation}
+Ở đây $M$ là số điểm kiểm tra. Tập được dùng để lựa chọn mô hình nhiều
+lần không còn là tập kiểm tra độc lập cuối cùng.
+
+Nếu lấy mẫu thích nghi với mật độ $q(\mathbf{z})>0$ so với
+$\mu_r$, thì
+\begin{equation}
+ \mathbb{E}_{\mathbf{Z}\sim q\mu_r}
+ \left[\frac{|r_{\boldsymbol{\theta}}(\mathbf{Z})|^2}{q(\mathbf{Z})}\right]
+ =\int_Q\frac{|r_{\boldsymbol{\theta}}(\mathbf{z})|^2}{q(\mathbf{z})}
+              q(\mathbf{z})\,\mathrm{d}\mu_r
+ =\mathcal{J}_r(\boldsymbol{\theta}).
+ \label{p4:eq:importance}
+\end{equation}
+Mật độ $q$ phải tích phân bằng một. Nếu bỏ hệ số $1/q$, ta đang xấp
+xỉ một chuẩn có trọng số khác. Với $q$ phụ thuộc lịch sử huấn luyện,
+đẳng thức được hiểu có điều kiện theo lịch sử trước khi lấy mẫu mới.
+
+\subsection{Phân rã sai số xấp xỉ, lấy mẫu và tối ưu}
+
+Giả sử trên cùng tập $\Theta$ ta có một cận hữu hạn
+\begin{equation}
+ \varepsilon_{\mathrm{samp}}
+ :=\sup_{\boldsymbol{\theta}\in\Theta}
+       |\mathcal{J}(\boldsymbol{\theta})-J_N(\boldsymbol{\theta})|.
+ \label{p4:eq:uniform-gap}
+\end{equation}
+Đây là sai lệch đều giữa mất mát liên tục và rời rạc. Sự hội tụ tại
+mỗi tham số cố định trong luật số lớn không tự động cho cận đều này.
+
+\begin{proposition}[Cận cho mất mát liên tục]
+Nếu \eqref{p4:eq:approx-opt} và \eqref{p4:eq:uniform-gap} đúng thì
+\begin{equation}
+ \mathcal{J}(\widehat{\boldsymbol{\theta}})
+ \leq\varepsilon_{\mathrm{app}}+
+          2\varepsilon_{\mathrm{samp}}+\varepsilon_{\mathrm{opt}},
+ \qquad
+ \varepsilon_{\mathrm{app}}:=\inf_{\boldsymbol{\theta}\in\Theta}
+                                      \mathcal{J}(\boldsymbol{\theta}).
+ \label{p4:eq:decomposition}
+\end{equation}
+\end{proposition}
+Trong đó, $\varepsilon_{\mathrm{app}}$ đo khả năng thỏa bài toán bằng
+họ hàm đã chọn, khi nghiệm đúng có mất mát liên tục bằng không.
+
+\begin{proof}
+Với mọi $\boldsymbol{\theta}\in\Theta$,
+\begin{align*}
+ \mathcal{J}(\widehat{\boldsymbol{\theta}})
+ &\leq J_N(\widehat{\boldsymbol{\theta}})+\varepsilon_{\mathrm{samp}}\\
+ &\leq J_N(\boldsymbol{\theta})+
+                         \varepsilon_{\mathrm{opt}}+\varepsilon_{\mathrm{samp}}\\
+ &\leq\mathcal{J}(\boldsymbol{\theta})+
+                         \varepsilon_{\mathrm{opt}}+2\varepsilon_{\mathrm{samp}}.
+\end{align*}
+Lấy cận dưới đúng theo $\boldsymbol{\theta}$ ở vế phải cho kết quả.
+\end{proof}
+
+Một định lý xấp xỉ phổ dụng thường cho phép tăng độ rộng, độ sâu hoặc
+thay đổi lớp tham số; nó không chứng minh
+$\varepsilon_{\mathrm{app}}=0$ cho một kiến trúc hữu hạn cố định.
+Hơn nữa, xấp xỉ tốt chính hàm $u$ theo chuẩn đều chưa tự động cho xấp
+xỉ tốt các đạo hàm xuất hiện trong phần dư. Cần chọn chuẩn xấp xỉ và
+giả thiết phù hợp với toán tử vi phân.
+
+\subsection{Chặn ổn định: từ phần dư đến sai số nghiệm}
+
+Đặt $e=v-u$, với $v$ là một hàm xấp xỉ đủ trơn. Muốn chuyển
+\eqref{p4:eq:decomposition} thành cận sai số nghiệm, cần một bất đẳng
+thức ổn định. Ta chứng minh tường minh cho bài toán Poisson một chiều.
+
+\begin{proposition}[Poisson với sai số biên]
+Cho $u\in H^2(0,1)$ thỏa $-u''=f$, $u(0)=g_0$, $u(1)=g_1$ và
+$v\in H^2(0,1)$. Đặt
+\[
+ e=v-u,\quad r=-v''-f,\quad
+ \beta_0=v(0)-g_0,\quad\beta_1=v(1)-g_1.
+\]
+Khi đó
+\begin{equation}
+ \|e\|_{L^2(0,1)}
+ \leq\frac{1}{\pi^2}\|r\|_{L^2(0,1)}
+      +\sqrt{\frac{\beta_0^2+\beta_1^2}{2}}.
+ \label{p4:eq:poisson-bound}
+\end{equation}
+Nếu $\beta_0=\beta_1=0$ thì còn có
+\begin{equation}
+ \|e'\|_{L^2(0,1)}\leq\frac{1}{\pi}\|r\|_{L^2(0,1)}.
+ \label{p4:eq:poisson-h1}
+\end{equation}
+\end{proposition}
+Ở đây $H^2(0,1)$ là không gian các hàm có đạo hàm yếu đến bậc hai
+thuộc $L^2$; $H^1_0(0,1)$ là không gian $H^1$ có vết bằng không tại
+hai đầu mút. Dấu phẩy trên hàm là đạo hàm theo $x$.
+
+\begin{proof}
+Đặt $\ell(x)=(1-x)\beta_0+x\beta_1$ và $w=e-\ell$.
+Khi đó $w\in H^2\cap H^1_0$, $\ell''=0$ và $-w''=r$.
+Nhân với $w$ và tích phân từng phần:
+\[
+ \|w'\|_{L^2}^2
+ =\int_0^1rw\,\mathrm{d}x
+ \leq\|r\|_{L^2}\|w\|_{L^2}
+ \leq\frac{1}{\pi}\|r\|_{L^2}\|w'\|_{L^2}.
+\]
+Bước cuối là bất đẳng thức Poincaré trên $(0,1)$ với vết bằng không.
+Nếu $\|w'\|=0$ thì các cận là hiển nhiên; nếu khác không, chia hai vế
+cho $\|w'\|$ cho $\|w'\|\leq\pi^{-1}\|r\|$, rồi áp dụng Poincaré
+lần nữa cho $\|w\|\leq\pi^{-2}\|r\|$. Mặt khác,
+\[
+ \|\ell\|_{L^2}^2
+ =\frac{\beta_0^2+\beta_0\beta_1+\beta_1^2}{3}
+ \leq\frac{\beta_0^2+\beta_1^2}{2},
+\]
+vì $2\beta_0\beta_1\leq\beta_0^2+\beta_1^2$.
+Bất đẳng thức tam giác $\|e\|\leq\|w\|+\|\ell\|$ cho
+\eqref{p4:eq:poisson-bound}. Với sai số biên bằng không thì $w=e$,
+nên có thêm \eqref{p4:eq:poisson-h1}.
+\end{proof}
+
+Với bài toán này, đặt
+$\mathcal{J}=\lambda_r\|r\|_{L^2}^2+
+\lambda_b(\beta_0^2+\beta_1^2)/2$. Cauchy--Schwarz trong
+$\mathbb{R}^2$ áp dụng cho \eqref{p4:eq:poisson-bound} cho
+\begin{equation}
+ \|v-u\|_{L^2}
+ \leq C_{\mathrm{stab}}\sqrt{\mathcal{J}},
+ \qquad
+ C_{\mathrm{stab}}=
+       \sqrt{\frac{1}{\pi^4\lambda_r}+\frac{1}{\lambda_b}}.
+ \label{p4:eq:stability-loss}
+\end{equation}
+Do đó, nếu các giả thiết của phép phân rã sai số đúng, ta có
+\begin{equation}
+ \|u_{\widehat{\boldsymbol{\theta}}}-u\|_{L^2}
+ \leq C_{\mathrm{stab}}
+       \sqrt{\varepsilon_{\mathrm{app}}+
+                       2\varepsilon_{\mathrm{samp}}+\varepsilon_{\mathrm{opt}}}.
+ \label{p4:eq:total-error}
+\end{equation}
+Đây là một cận có điều kiện cho mô hình Poisson vừa xét. Không thay
+chuẩn phần dư liên tục bằng mất mát trên một tập hữu hạn rồi giữ
+nguyên kết luận mà bỏ số hạng lấy mẫu.
+
+\paragraph{Không đồng nhất một cận thô với hằng số ổn định tối ưu.}
+Xét $-\nu e''+e'=r$ trên $(0,1)$, $e(0)=e(1)=0$, $\nu>0$.
+Nhân với $e$ rồi tích phân cho
+$\nu\|e'\|_{L^2}^2=\int re$, vì
+$\int e'e=[e^2/2]_0^1=0$. Lập luận Poincaré như trên cho
+\begin{equation}
+ \|e'\|_{L^2}\leq\frac{\|r\|_{L^2}}{\pi\nu},
+ \qquad \|e\|_{L^2}\leq\frac{\|r\|_{L^2}}{\pi^2\nu}.
+ \label{p4:eq:coarse-convection}
+\end{equation}
+Hai bất đẳng thức đúng, nhưng chưa chứng minh chuẩn của toán tử nghịch
+đảo theo $L^2$ thực sự tăng như $1/\nu$. Thật vậy, chọn trọng số
+$\omega(x)=\exp(-x)$, nhân phương trình với $\omega e$ và tích phân:
+\begin{align}
+ \int_0^1(-\nu e''+e')\omega e\,\mathrm{d}x
+ &=\nu\int_0^1\omega(e')^2\,\mathrm{d}x
+    -\frac{\nu}{2}\int_0^1\omega''e^2\,\mathrm{d}x
+    -\frac12\int_0^1\omega'e^2\,\mathrm{d}x\notag\\
+ &=\nu\int_0^1\omega(e')^2\,\mathrm{d}x
+    +\frac{1-\nu}{2}\int_0^1\omega e^2\,\mathrm{d}x
+ =\int_0^1\omega re\,\mathrm{d}x.
+ \label{p4:eq:weighted-energy}
+\end{align}
+Các số hạng biên triệt tiêu, còn $\omega'=-\omega$,
+$\omega''=\omega$. Đặt $\|h\|_\omega^2=\int_0^1\omega|h|^2$.
+Với $0<\nu\leq1/2$, bỏ số hạng không âm và dùng Cauchy--Schwarz:
+\[
+ \tfrac14\|e\|_\omega^2\leq\|r\|_\omega\|e\|_\omega.
+\]
+Vì $\exp(-1)\leq\omega\leq1$, suy ra cận đồng đều theo $\nu$:
+\begin{equation}
+ \boxed{\|e\|_{L^2}\leq4\exp(1/2)\|r\|_{L^2},
+                       \qquad 0<\nu\leq1/2.}
+ \label{p4:eq:uniform-convection}
+\end{equation}
+Cận này không kiểm soát đồng đều đạo hàm $e'$, và không loại trừ sự
+hình thành lớp biên. Nó cho thấy cần phân biệt sự suy giảm chất lượng
+của một phép ước lượng với sự mất ổn định thật sự trong chuẩn đang xét.
+
+\subsection{Ràng buộc cứng và bài toán ngược}
+
+Trong \eqref{p4:eq:loss-total}, điều kiện biên được áp đặt bằng số hạng
+phạt nên gọi là ràng buộc mềm. Với điều kiện Dirichlet, nếu dựng được
+các hàm đủ trơn $G,\psi$ thỏa $G|_\Sigma=g$, $\psi|_\Sigma=0$, thì
+\begin{equation}
+ v_{\boldsymbol{\theta}}(\mathbf{x},t)
+ =G(\mathbf{x},t)+\psi(\mathbf{x},t)u_{\boldsymbol{\theta}}(\mathbf{x},t)
+ \label{p4:eq:hard}
+\end{equation}
+thỏa biên với mọi tham số: trên biên, số hạng chứa $\psi$ bằng không.
+Ở đây $G$ là hàm nâng dữ kiện biên, $\psi$ là nhân tử triệt tiêu trên
+biên. Trên $(a,b)$ với biên thuần nhất có thể dùng
+$\psi(x)=(x-a)(b-x)$. Cấu trúc này không tự động áp đặt điều kiện
+Neumann; với biên và điều kiện đầu đồng thời còn phải xét tính tương
+thích. Nó cũng thay đổi đạo hàm của hàm thử, chẳng hạn
+$(\psi u_{\boldsymbol{\theta}})''=\psi u_{\boldsymbol{\theta}}''+
+2\psi'u_{\boldsymbol{\theta}}'+\psi''u_{\boldsymbol{\theta}}$.
+Vì thế, giảm số ràng buộc mềm không đồng nghĩa bảo đảm tối ưu dễ hơn.
+
+Trong bài toán thuận, $\boldsymbol{\zeta}$ đã biết. Trong bài toán
+ngược, thêm dữ liệu quan trắc
+$\mathcal{T}_u=\{(\mathbf{x}_u^i,t_u^i,y_i)\}_{i=1}^{N_u}$ và đặt
+\begin{equation}
+ J_u(\boldsymbol{\theta})=\frac{1}{N_u}\sum_{i=1}^{N_u}
+ |u_{\boldsymbol{\theta}}(\mathbf{x}_u^i,t_u^i)-y_i|^2.
+ \label{p4:eq:inverse-data}
+\end{equation}
+Trong đó $y_i$ là giá trị quan trắc, có thể có nhiễu. Ta tối ưu đồng
+thời $\boldsymbol{\theta}$ và $\boldsymbol{\zeta}$ trong
+$\lambda_uJ_u+\lambda_rJ_r+\lambda_0J_0+\lambda_bJ_b$, giữ các thành
+phần có dữ kiện tương ứng. Cách ghép dữ liệu với phần dư là nội dung
+của mô hình nhận dạng phương trình trong
+\cite{raissi2019,raissi2017b}.
+
+Ví dụ, phần dư Burgers có hệ số chưa biết là
+\begin{equation}
+ r_{\boldsymbol{\theta},\boldsymbol{\zeta}}
+ =u_{\boldsymbol{\theta},t}+
+ \zeta_1u_{\boldsymbol{\theta}}u_{\boldsymbol{\theta},x}
+ -\zeta_2u_{\boldsymbol{\theta},xx}.
+ \label{p4:eq:inverse-burgers}
+\end{equation}
+Hai hệ số $\zeta_1,\zeta_2$ có thể nhận đạo hàm qua cùng đồ thị tính
+toán. Tuy nhiên, khả năng tính đạo hàm không bảo đảm nhận dạng duy
+nhất: nếu $u\equiv0$, phương trình trên đúng với mọi cặp hệ số.
+Tổng quát hơn, sự phân biệt hai hệ số đòi hỏi các thông tin gắn với
+$u u_x$ và $-u_{xx}$ không suy biến trên dữ liệu. Thông tin vật lý có
+thể hỗ trợ nhận dạng nhưng không tự động biến mọi bài toán ngược
+thành bài toán đặt chỉnh.
+

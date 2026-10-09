@@ -1,0 +1,246 @@
+\section{Thuật toán Adam}
+\label{sec:adam}
+
+Trong thuật toán hạ gradient ngẫu nhiên, mọi thành phần của vectơ tham số dùng chung một tốc độ học, dù độ lớn của gradient theo từng thành phần có thể rất khác nhau. Thuật toán Adam (viết tắt của \emph{adaptive moment estimation}, nghĩa là ước lượng mômen thích nghi; Kingma và Ba, 2015) khắc phục điều này bằng cách duy trì hai trung bình trượt mũ của gradient: một ước lượng mômen bậc nhất, đóng vai trò hướng chuyển động, và một ước lượng mômen bậc hai không tâm, đóng vai trò thang đo độ lớn theo từng thành phần. Hai ước lượng đều khởi tạo tại $\mathbf{0}$ nên bị chệch về $\mathbf{0}$ ở những lần lặp đầu; Adam hiệu chỉnh độ chệch này một cách tường minh.
+
+\subsection{Bài toán và gradient trên lô nhỏ}
+Xét bài toán cực tiểu hóa hàm mất mát trung bình
+\begin{equation}\label{eq:adam-J}
+  \min_{\boldsymbol{\theta}\in\mathbb{R}^{p}} J(\boldsymbol{\theta}),
+  \qquad
+  J(\boldsymbol{\theta})=\frac{1}{N}\sum_{i=1}^{N}J_i(\boldsymbol{\theta}),
+\end{equation}
+trong đó $\boldsymbol{\theta}$ là vectơ xếp tất cả các tham số $\mathbf{W}^{[l]},\mathbf{b}^{[l]}$ $(l=1,\dots,L)$ của mạng. Tại lần lặp thứ $t$, ta chọn ngẫu nhiên một lô nhỏ $B_t\subset\{1,\dots,N\}$ gồm $m$ chỉ số và tính gradient trên lô nhỏ
+\begin{equation}\label{eq:adam-g}
+  \mathbf{g}_t=\nabla J_{B_t}(\boldsymbol{\theta}_{t-1})
+  =\frac{1}{m}\sum_{i\in B_t}\nabla J_i(\boldsymbol{\theta}_{t-1}).
+\end{equation}
+Các khối của $\mathbf{g}_t$ ứng với $\mathbf{W}^{[l]}$ và $\mathbf{b}^{[l]}$ chính là kết quả của lan truyền ngược theo lô đã trình bày ở mục trước.
+
+Nếu các chỉ số trong $B_t$ được chọn độc lập và đồng khả năng từ $\{1,\dots,N\}$ (có hoàn lại), thì
+\begin{equation}\label{eq:adam-unbiased}
+  \begin{aligned}
+  \mathbb{E}\big[\mathbf{g}_t\mid\boldsymbol{\theta}_{t-1}\big]
+  &=\frac{1}{m}\sum_{k=1}^{m}\mathbb{E}\big[\nabla J_{i_k}(\boldsymbol{\theta}_{t-1})\mid\boldsymbol{\theta}_{t-1}\big]\\
+  &=\frac{1}{m}\cdot m\cdot\frac{1}{N}\sum_{i=1}^{N}\nabla J_i(\boldsymbol{\theta}_{t-1})
+  =\nabla J(\boldsymbol{\theta}_{t-1}).
+  \end{aligned}
+\end{equation}
+Vậy $\mathbf{g}_t$ là ước lượng không chệch của $\nabla J(\boldsymbol{\theta}_{t-1})$, nhưng có nhiễu do chỉ dùng $m$ mẫu. Hai trung bình trượt dưới đây làm giảm ảnh hưởng của nhiễu này.
+
+Trong đó:
+\begin{itemize}
+  \item $J_i$ là mất mát ứng với mẫu thứ $i$; $N$ là số mẫu; $p$ là tổng số tham số của mạng.
+  \item $B_t$ là lô nhỏ ở lần lặp $t$, gồm $m$ chỉ số; $i_1,\dots,i_m$ là các chỉ số được chọn.
+  \item $\boldsymbol{\theta}_{t-1}\in\mathbb{R}^{p}$ là vectơ tham số sau $t-1$ lần cập nhật; $\boldsymbol{\theta}_0$ là giá trị khởi tạo.
+  \item $\mathbf{g}_t\in\mathbb{R}^{p}$ là gradient trên lô nhỏ tại lần lặp $t$; $g_{t,j}$ là thành phần thứ $j$ của nó.
+\end{itemize}
+
+%---------------------------------------------------------------------
+\subsection{Các trung bình trượt mũ của gradient}
+%---------------------------------------------------------------------
+
+Adam duy trì hai vectơ $\mathbf{m}_t,\mathbf{v}_t\in\mathbb{R}^{p}$ với $\mathbf{m}_0=\mathbf{v}_0=\mathbf{0}$:
+\begin{align}
+  \mathbf{m}_t&=\beta_1\mathbf{m}_{t-1}+(1-\beta_1)\,\mathbf{g}_t, \label{eq:adam-m}\\
+  \mathbf{v}_t&=\beta_2\mathbf{v}_{t-1}+(1-\beta_2)\,\mathbf{g}_t\odot\mathbf{g}_t. \label{eq:adam-v}
+\end{align}
+Mỗi công thức là một tổ hợp lồi giữa giá trị cũ và quan sát mới, trong đó $1-\beta$ là trọng số của quan sát mới.
+
+Trong đó:
+\begin{itemize}
+  \item $\mathbf{m}_t$ là ước lượng mômen bậc nhất của gradient, tức là ước lượng của $\mathbb{E}[\mathbf{g}]$.
+  \item $\mathbf{v}_t$ là ước lượng mômen bậc hai không tâm, tức là ước lượng của $\mathbb{E}[\mathbf{g}\odot\mathbf{g}]$.
+  \item $\beta_1,\beta_2\in[0,1)$ là các hệ số suy giảm; $\beta_1$ điều khiển $\mathbf{m}_t$, $\beta_2$ điều khiển $\mathbf{v}_t$.
+  \item $\odot$ là tích Hadamard (nhân theo từng thành phần): $(\mathbf{a}\odot\mathbf{b})_j=a_jb_j$.
+\end{itemize}
+
+Để thấy $\mathbf{m}_t,\mathbf{v}_t$ thực sự là trung bình có trọng số của các gradient đã qua, ta khai triển các hệ thức truy hồi.
+
+\begin{proposition}\label{prop:adam-expand}
+Với mọi $t\ge 1$,
+\begin{equation}\label{eq:adam-expand}
+  \mathbf{m}_t=(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}\,\mathbf{g}_i,
+  \qquad
+  \mathbf{v}_t=(1-\beta_2)\sum_{i=1}^{t}\beta_2^{\,t-i}\,\mathbf{g}_i\odot\mathbf{g}_i .
+\end{equation}
+Hơn nữa, với $\beta\in[0,1)$ ta có $\displaystyle\sum_{i=1}^{t}(1-\beta)\beta^{\,t-i}=1-\beta^{\,t}$.
+\end{proposition}
+
+\begin{proof}
+Ta chứng minh công thức cho $\mathbf{m}_t$ bằng quy nạp; công thức cho $\mathbf{v}_t$ hoàn toàn tương tự với $\mathbf{g}_i$ thay bằng $\mathbf{g}_i\odot\mathbf{g}_i$ và $\beta_1$ thay bằng $\beta_2$.
+
+Với $t=1$: $\mathbf{m}_1=\beta_1\mathbf{m}_0+(1-\beta_1)\mathbf{g}_1=(1-\beta_1)\mathbf{g}_1$, đúng với công thức.
+
+Giả sử công thức đúng với $t$. Từ \eqref{eq:adam-m},
+\begin{align*}
+  \mathbf{m}_{t+1}&=\beta_1\cdot(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}\mathbf{g}_i+(1-\beta_1)\mathbf{g}_{t+1}\\
+  &=(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t+1-i}\mathbf{g}_i+(1-\beta_1)\beta_1^{0}\,\mathbf{g}_{t+1}\\
+  &=(1-\beta_1)\sum_{i=1}^{t+1}\beta_1^{\,t+1-i}\mathbf{g}_i,
+\end{align*}
+đúng với $t+1$.
+
+Đẳng thức về tổng trọng số suy từ công thức tổng cấp số nhân:
+\begin{equation*}
+    \sum_{i=1}^{t} (1-\beta) \beta^{t-i} 
+    = (1-\beta) \sum_{k=0}^{t-1} \beta^{k} 
+    = (1-\beta) \cdot \frac{1-\beta^{t}}{1-\beta} 
+    = 1-\beta^{t} 
+\end{equation*}
+\end{proof}
+
+Như vậy $\mathbf{g}_{t-k}$ có trọng số $(1-\beta)\beta^{k}$ trong trung bình: gradient càng cũ thì trọng số càng giảm theo cấp số nhân. Tổng các trọng số bằng $1-\beta^{t}$ chứ không bằng $1$; chính điều này gây ra độ chệch được phân tích ở mục sau. Khi $t\to\infty$, tổng trọng số tiến về $1$, và độ trễ trung bình của trung bình trượt là
+\begin{equation}\label{eq:adam-memory}
+  \sum_{k=0}^{\infty}k\,(1-\beta)\beta^{k}=(1-\beta)\cdot\frac{\beta}{(1-\beta)^{2}}=\frac{\beta}{1-\beta}\ \text{lần lặp},
+\end{equation}
+xấp xỉ $1/(1-\beta)$ khi $\beta$ gần $1$. Ta dùng $\sum_{k\ge0}k\beta^{k}=\beta/(1-\beta)^{2}$ với $|\beta|<1$.
+
+Về ý nghĩa: vì $\mathbb{E}[g_j^2]=(\mathbb{E}[g_j])^2+\operatorname{Var}(g_j)$, thành phần thứ $j$ của $\sqrt{\mathbf{v}_t}$ ước lượng giá trị hiệu dụng (căn trung bình bình phương) của $g_j$; giá trị này lớn khi gradient có biên độ lớn hoặc dao động mạnh.
+
+%---------------------------------------------------------------------
+\subsection{Hiệu chỉnh độ chệch}
+%---------------------------------------------------------------------
+
+Do $\mathbf{m}_0=\mathbf{v}_0=\mathbf{0}$, các ước lượng $\mathbf{m}_t,\mathbf{v}_t$ bị kéo về $\mathbf{0}$ ở những lần lặp đầu. Mệnh đề sau định lượng độ chệch đó.
+
+\begin{proposition}\label{prop:adam-bias}
+Với mọi $t\ge1$,
+\begin{align}
+  \mathbb{E}[\mathbf{m}_t]&=(1-\beta_1^{\,t})\,\mathbb{E}[\mathbf{g}_t]+\boldsymbol{\zeta}_t, \label{eq:adam-bias-m}\\
+  \mathbb{E}[\mathbf{v}_t]&=(1-\beta_2^{\,t})\,\mathbb{E}[\mathbf{g}_t\odot\mathbf{g}_t]+\boldsymbol{\xi}_t, \label{eq:adam-bias-v}
+\end{align}
+trong đó
+\begin{align}
+  \boldsymbol{\zeta}_t&=(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}\big(\mathbb{E}[\mathbf{g}_i]-\mathbb{E}[\mathbf{g}_t]\big), \label{eq:adam-zeta}\\
+  \boldsymbol{\xi}_t&=(1-\beta_2)\sum_{i=1}^{t}\beta_2^{\,t-i}\big(\mathbb{E}[\mathbf{g}_i\odot\mathbf{g}_i]-\mathbb{E}[\mathbf{g}_t\odot\mathbf{g}_t]\big). \label{eq:adam-xi}
+\end{align}
+Đặc biệt, nếu $\mathbb{E}[\mathbf{g}_i]=\mathbb{E}[\mathbf{g}_t]$ với mọi $i\le t$ thì $\boldsymbol{\zeta}_t=\mathbf{0}$ và độ chệch của $\mathbf{m}_t$ bằng $\mathbb{E}[\mathbf{m}_t]-\mathbb{E}[\mathbf{g}_t]=-\beta_1^{\,t}\,\mathbb{E}[\mathbf{g}_t]$; kết luận tương tự đúng cho $\mathbf{v}_t$ khi $\mathbb{E}[\mathbf{g}_i\odot\mathbf{g}_i]$ không phụ thuộc $i$.
+\end{proposition}
+
+\begin{proof}
+Lấy kỳ vọng hai vế của \eqref{eq:adam-expand} (kỳ vọng là tuyến tính):
+\begin{equation*}
+  \mathbb{E}[\mathbf{m}_t]=(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}\,\mathbb{E}[\mathbf{g}_i].
+\end{equation*}
+Cộng và trừ $\mathbb{E}[\mathbf{g}_t]$ trong mỗi số hạng của tổng:
+\begin{equation*}
+  \mathbb{E}[\mathbf{m}_t]
+  =\underbrace{(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}}_{=\,1-\beta_1^{\,t}}\ \mathbb{E}[\mathbf{g}_t]
+  +(1-\beta_1)\sum_{i=1}^{t}\beta_1^{\,t-i}\big(\mathbb{E}[\mathbf{g}_i]-\mathbb{E}[\mathbf{g}_t]\big),
+\end{equation*}
+trong đó hệ số của $\mathbb{E}[\mathbf{g}_t]$ được tính bằng đẳng thức về tổng trọng số ở Mệnh đề~\ref{prop:adam-expand}. Đó là \eqref{eq:adam-bias-m}; công thức \eqref{eq:adam-bias-v} suy ra tương tự từ biểu thức của $\mathbf{v}_t$. Trường hợp đặc biệt suy ra trực tiếp vì khi đó mọi số hạng trong $\boldsymbol{\zeta}_t$ triệt tiêu.
+\end{proof}
+
+Từ \eqref{eq:adam-bias-m} và \eqref{eq:adam-bias-v}, chia cho tổng trọng số $1-\beta^{\,t}$ để đưa các ước lượng về đúng thang đo, ta được các ước lượng đã hiệu chỉnh độ chệch:
+\begin{equation}\label{eq:adam-hat}
+  \hat{\mathbf{m}}_t=\frac{\mathbf{m}_t}{1-\beta_1^{\,t}},
+  \qquad
+  \hat{\mathbf{v}}_t=\frac{\mathbf{v}_t}{1-\beta_2^{\,t}} .
+\end{equation}
+Khi đó $\mathbb{E}[\hat{\mathbf{m}}_t]=\mathbb{E}[\mathbf{g}_t]+\boldsymbol{\zeta}_t/(1-\beta_1^{\,t})$, và tương tự cho $\hat{\mathbf{v}}_t$. Nếu kỳ vọng của gradient không đổi theo $t$ thì $\hat{\mathbf{m}}_t,\hat{\mathbf{v}}_t$ không chệch. Nếu kỳ vọng thay đổi, các số hạng hiệu chỉnh $\boldsymbol{\zeta}_t,\boldsymbol{\xi}_t$ vẫn nhỏ khi kỳ vọng biến thiên chậm hoặc khi $\beta$ đủ nhỏ để các gradient cũ nhanh chóng mất trọng số. Phép chia hợp lệ vì $1-\beta^{\,t}>0$ với $\beta\in[0,1)$ và $t\ge1$.
+
+\begin{example}
+\label{ex:adam-bias}
+Xét một thành phần với $\beta_1=0{,}9$, $\beta_2=0{,}999$ và lần lặp đầu tiên $t=1$, gradient $g_1=g\neq0$. Khi chưa hiệu chỉnh, $m_1=0{,}1\,g$ và $v_1=0{,}001\,g^{2}$, nên (bỏ qua $\varepsilon$)
+\begin{equation*}
+    \frac{m_1}{\sqrt{v_1}} = \frac{0{,}1\,g}{\sqrt{0{,}001}\,|g|} = \sqrt{10}\,\operatorname{sign}(g) \approx 3{,}16\,\operatorname{sign}(g).
+\end{equation*}
+Sau hiệu chỉnh, $\hat{m}_1 = m_1/(1-0{,}9) = g$ và $\hat{v}_1 = v_1/(1-0{,}999) = g^{2}$, nên $\hat{m}_1/\sqrt{\hat{v}_1} = \operatorname{sign}(g)$. Như vậy, không hiệu chỉnh thì bước đầu dài khoảng $3{,}16\,\alpha$ thay vì $\alpha$. Ngoài ra, vì $\beta_2^{1000} \approx 0{,}368$, nếu $\mathbb{E}[g^2]$ không đổi thì sau $1000$ lần lặp $\mathbb{E}[v_t]$ vẫn chỉ đạt khoảng $63{,}2\%$ giá trị đích; hiệu chỉnh độ chệch cần thiết cho $\mathbf{v}_t$ hơn cho $\mathbf{m}_t$ vì $\beta_2$ rất gần $1$.
+\end{example}
+
+%---------------------------------------------------------------------
+\subsection{Quy tắc cập nhật}
+%---------------------------------------------------------------------
+
+Quy tắc cập nhật của Adam là
+\begin{equation}\label{eq:adam-update}
+  \theta_{t,j}=\theta_{t-1,j}-\alpha\,\frac{\hat m_{t,j}}{\sqrt{\hat v_{t,j}}+\varepsilon},
+  \qquad j=1,\dots,p .
+\end{equation}
+Tức là mỗi thành phần $\theta_j$ được dịch chuyển theo hướng $-\hat m_{t,j}$ (ước lượng gradient đã làm trơn) và bước đi được chia cho $\sqrt{\hat v_{t,j}}$ (giá trị hiệu dụng của gradient theo thành phần đó). Nhờ vậy, thành phần có gradient lớn hoặc dao động mạnh nhận bước nhỏ hơn, thành phần có gradient nhỏ và ổn định nhận bước lớn hơn.
+
+Trong đó:
+\begin{itemize}
+  \item $\alpha>0$ là tốc độ học (siêu tham số).
+  \item $\varepsilon>0$ là hằng số nhỏ, tránh chia cho $0$ khi $\hat v_{t,j}=0$.
+  \item $\theta_{t,j}$, $\hat m_{t,j}$, $\hat v_{t,j}$ là các thành phần thứ $j$ của $\boldsymbol{\theta}_t$, $\hat{\mathbf{m}}_t$, $\hat{\mathbf{v}}_t$; căn bậc hai và phép chia được thực hiện theo từng thành phần.
+\end{itemize}
+
+\paragraph{Dạng theo lớp.}
+Vì mọi phép toán trong \eqref{eq:adam-m}, \eqref{eq:adam-v}, \eqref{eq:adam-hat}, \eqref{eq:adam-update} đều thực hiện theo từng thành phần, ta có thể chia các vectơ $\boldsymbol{\theta}_t,\mathbf{g}_t,\mathbf{m}_t,\mathbf{v}_t$ thành các khối ứng với các tham số của từng lớp. Với mỗi khối $\mathbf{P}^{[l]}\in\{\mathbf{W}^{[l]},\mathbf{b}^{[l]}\}$, đặt $\mathbf{G}^{[l]}_t=\partial J_{B_t}/\partial\mathbf{P}^{[l]}$ tại $\boldsymbol{\theta}_{t-1}$, thì
+\begin{align}
+  \mathbf{M}^{[l]}_t&=\beta_1\mathbf{M}^{[l]}_{t-1}+(1-\beta_1)\,\mathbf{G}^{[l]}_t,\notag\\
+  \mathbf{V}^{[l]}_t&=\beta_2\mathbf{V}^{[l]}_{t-1}+(1-\beta_2)\,\mathbf{G}^{[l]}_t\odot\mathbf{G}^{[l]}_t,\notag\\
+  \mathbf{P}^{[l]}_t&=\mathbf{P}^{[l]}_{t-1}-\alpha\,\frac{\mathbf{M}^{[l]}_t/(1-\beta_1^{\,t})}{\sqrt{\mathbf{V}^{[l]}_t/(1-\beta_2^{\,t})}+\varepsilon},\notag
+\end{align}
+trong đó $\mathbf{M}^{[l]}_t,\mathbf{V}^{[l]}_t$ có cùng kích thước với $\mathbf{P}^{[l]}$, còn căn bậc hai và phép chia thực hiện theo từng phần tử. Mỗi khối $\mathbf{W}^{[l]}$, $\mathbf{b}^{[l]}$ có bộ $\mathbf{M},\mathbf{V}$ riêng, nên bộ nhớ cần thêm là $2p$ số.
+
+\begin{proposition}\label{prop:adam-step}
+Xét một thành phần $j$ của bước cập nhật \eqref{eq:adam-update}.
+\begin{enumerate}
+  \item[(a)] Nếu $g_{i,j}=g$ không đổi với mọi $i\le t$ thì $\hat m_{t,j}=g$, $\hat v_{t,j}=g^{2}$ và bước cập nhật bằng $-\alpha\,g/(|g|+\varepsilon)$, xấp xỉ $-\alpha\operatorname{sign}(g)$ khi $|g|\gg\varepsilon$.
+  \item[(b)] Nếu thay mọi gradient $\mathbf{g}_i$ bằng $c\,\mathbf{g}_i$ với hằng số $c>0$ thì $\hat m_{t,j}\mapsto c\,\hat m_{t,j}$, $\hat v_{t,j}\mapsto c^{2}\hat v_{t,j}$, và bước cập nhật trở thành $-\alpha\,\hat m_{t,j}/(\sqrt{\hat v_{t,j}}+\varepsilon/c)$; do đó bước cập nhật không đổi khi bỏ qua $\varepsilon$.
+  \item[(c)] Nếu gradient dừng, nghĩa là $\mathbb{E}[g_{i,j}]=\mu_j$ và $\operatorname{Var}(g_{i,j})=\sigma_j^{2}$ với mọi $i$, thì tỉ số giữa các kỳ vọng thỏa
+  \begin{equation*}
+    \frac{|\mathbb{E}[\hat m_{t,j}]|}{\mathbb{E}[\hat v_{t,j}]^{1/2}}=\frac{|\mu_j|}{\sqrt{\mu_j^{2}+\sigma_j^{2}}}\le 1 .
+  \end{equation*}
+\end{enumerate}
+\end{proposition}
+
+\begin{proof}
+(a) Từ \eqref{eq:adam-expand} và đẳng thức về tổng trọng số, $m_{t,j}=(1-\beta_1^{\,t})\,g$ và $v_{t,j}=(1-\beta_2^{\,t})\,g^{2}$; chia cho $1-\beta_1^{\,t}$ và $1-\beta_2^{\,t}$ ta được $\hat m_{t,j}=g$, $\hat v_{t,j}=g^{2}$. Thay vào \eqref{eq:adam-update}.
+
+(b) Các công thức \eqref{eq:adam-m}, \eqref{eq:adam-v} tuyến tính theo $\mathbf{g}_i$ và $\mathbf{g}_i\odot\mathbf{g}_i$, nên $\mathbf{m}_t\mapsto c\,\mathbf{m}_t$ và $\mathbf{v}_t\mapsto c^{2}\mathbf{v}_t$; do đó $\sqrt{\hat v_{t,j}}\mapsto c\sqrt{\hat v_{t,j}}$ (vì $c>0$). Khi đó
+\[
+  \frac{c\,\hat m_{t,j}}{c\sqrt{\hat v_{t,j}}+\varepsilon}=\frac{\hat m_{t,j}}{\sqrt{\hat v_{t,j}}+\varepsilon/c}.
+\]
+
+(c) Theo Mệnh đề~\ref{prop:adam-bias} với $\zeta_t=\xi_t=0$ (kỳ vọng không đổi), $\mathbb{E}[\hat m_{t,j}]=\mu_j$ và $\mathbb{E}[\hat v_{t,j}]=\mathbb{E}[g_{i,j}^{2}]=\mu_j^{2}+\sigma_j^{2}$. Bất đẳng thức suy ra từ $\sigma_j^{2}\ge0$.
+\end{proof}
+
+Về ý nghĩa, (a) cho thấy khi gradient ổn định thì mỗi thành phần di chuyển khoảng $\alpha$ mỗi lần lặp bất kể độ lớn của gradient; (b) cho thấy Adam không phụ thuộc vào thang đo của hàm mất mát; (c) cho thấy khi nhiễu $\sigma_j$ lấn át tín hiệu $\mu_j$, tỉ số này nhỏ và bước đi tự co lại. Lưu ý ở (c) ta chỉ so sánh các kỳ vọng, không phải kỳ vọng của tỉ số.
+
+\paragraph{Bổ sung: dạng tính toán tương đương.}
+Thay \eqref{eq:adam-hat} vào \eqref{eq:adam-update} và nhân tử số lẫn mẫu số với $\sqrt{1-\beta_2^{\,t}}$:
+\begin{equation}\label{eq:adam-efficient}
+  \alpha\,\frac{m_{t,j}/(1-\beta_1^{\,t})}{\sqrt{v_{t,j}}/\sqrt{1-\beta_2^{\,t}}+\varepsilon}
+  =\alpha_t\,\frac{m_{t,j}}{\sqrt{v_{t,j}}+\varepsilon_t},
+\end{equation}
+trong đó
+\begin{equation*}
+  \alpha_t=\alpha\,\frac{\sqrt{1-\beta_2^{\,t}}}{1-\beta_1^{\,t}},
+  \qquad
+  \varepsilon_t=\varepsilon\sqrt{1-\beta_2^{\,t}} .
+\end{equation*}
+Dạng này chỉ cần tính hai đại lượng vô hướng $\alpha_t,\varepsilon_t$ ở mỗi lần lặp, thay vì chia hai vectơ $\mathbf{m}_t,\mathbf{v}_t$ để tạo $\hat{\mathbf{m}}_t,\hat{\mathbf{v}}_t$.
+
+%---------------------------------------------------------------------
+\subsection{Siêu tham số và thuật toán}
+%---------------------------------------------------------------------
+
+Kingma và Ba đề xuất các giá trị mặc định $\alpha=10^{-3}$, $\beta_1=0{,}9$, $\beta_2=0{,}999$, $\varepsilon=10^{-8}$. Theo \eqref{eq:adam-memory}, độ trễ trung bình tương ứng là $\beta_1/(1-\beta_1)=9$ lần lặp cho $\mathbf{m}_t$ và $\beta_2/(1-\beta_2)=999$ lần lặp cho $\mathbf{v}_t$. Như vậy $\hat{\mathbf{m}}_t$ phản ánh hướng gradient gần đây, còn $\hat{\mathbf{v}}_t$ là thang đo ổn định trên một khoảng dài hơn nhiều.
+
+\begin{algorithm}[t]
+\caption{Adam}\label{alg:adam}
+\begin{algorithmic}[1]
+\Require Tốc độ học $\alpha$; hệ số suy giảm $\beta_1,\beta_2\in[0,1)$; hằng số $\varepsilon>0$; tham số khởi tạo $\boldsymbol{\theta}_0$
+\State $\mathbf{m}_0\gets\mathbf{0}$, $\mathbf{v}_0\gets\mathbf{0}$, $t\gets0$
+\Repeat
+  \State $t\gets t+1$
+  \State Lấy lô nhỏ $B_t$ gồm $m$ mẫu; tính $\mathbf{g}_t=\nabla J_{B_t}(\boldsymbol{\theta}_{t-1})$ bằng lan truyền ngược
+  \State $\mathbf{m}_t\gets\beta_1\mathbf{m}_{t-1}+(1-\beta_1)\,\mathbf{g}_t$
+  \State $\mathbf{v}_t\gets\beta_2\mathbf{v}_{t-1}+(1-\beta_2)\,\mathbf{g}_t\odot\mathbf{g}_t$
+  \State $\hat{\mathbf{m}}_t\gets\mathbf{m}_t/(1-\beta_1^{\,t})$, \quad $\hat{\mathbf{v}}_t\gets\mathbf{v}_t/(1-\beta_2^{\,t})$
+  \State $\theta_{t,j}\gets\theta_{t-1,j}-\alpha\,\hat m_{t,j}\big/\big(\sqrt{\hat v_{t,j}}+\varepsilon\big)$ với mọi $j=1,\dots,p$
+\Until{thỏa mãn tiêu chí dừng}
+\State \Return $\boldsymbol{\theta}_t$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Quan hệ với các thuật toán khác và giới hạn lý thuyết}
+
+\paragraph{Bổ sung: quan hệ với hạ gradient có động lượng.}
+Nếu bỏ phần thích nghi, tức thay $\sqrt{\hat{\mathbf{v}}_t}+\varepsilon$ bằng $1$ và bỏ hiệu chỉnh độ chệch, bước cập nhật trở thành $\boldsymbol{\theta}_t=\boldsymbol{\theta}_{t-1}-\alpha\mathbf{m}_t$ với $\mathbf{m}_t$ theo \eqref{eq:adam-m}. Đặt $\mathbf{u}_t=\mathbf{m}_t/(1-\beta_1)$; chia \eqref{eq:adam-m} cho $1-\beta_1$ được $\mathbf{u}_t=\beta_1\mathbf{u}_{t-1}+\mathbf{g}_t$, và $\boldsymbol{\theta}_t=\boldsymbol{\theta}_{t-1}-\alpha(1-\beta_1)\,\mathbf{u}_t$. Đây là hạ gradient có động lượng dạng cổ điển với hệ số động lượng $\beta_1$ và tốc độ học $\alpha(1-\beta_1)$. Khi $\beta_1=0$ và bỏ hiệu chỉnh độ chệch, Adam quy về thuật toán RMSProp (sai khác ở vị trí của hằng số $\varepsilon$); như vậy Adam kết hợp động lượng với tốc độ học thích nghi theo thành phần.
+
+\paragraph{Bổ sung: lưu ý về hội tụ.}
+Kingma và Ba (2015) đưa ra chặn $O(\sqrt{T})$ cho độ hối tiếc (\emph{regret}) trong tối ưu lồi trực tuyến. Tuy nhiên, Reddi, Kale và Kumar (2018) chỉ ra chứng minh đó có sai sót và xây dựng một bài toán lồi trực tuyến mà Adam không hội tụ với một số bộ siêu tham số cố định. Họ đề xuất biến thể AMSGrad, thay $\hat{\mathbf{v}}_t$ ở mẫu số bằng $\mathbf{v}^{\max}_t=\max(\mathbf{v}^{\max}_{t-1},\mathbf{v}_t)$ lấy theo từng thành phần, để hệ số học hiệu dụng không tăng theo $t$. Vì vậy, các mệnh đề ở mục này chỉ mô tả cách hoạt động của bước cập nhật và độ chệch của các ước lượng, chứ không bảo đảm tính hội tụ của Adam trong trường hợp tổng quát.

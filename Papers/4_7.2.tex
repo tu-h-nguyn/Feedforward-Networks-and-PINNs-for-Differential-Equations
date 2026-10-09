@@ -1,0 +1,1107 @@
+\subsection{Phương pháp hạ dốc ngẫu nhiên}
+\label{sec:sgd}
+Phương pháp hạ dốc sử dụng toàn bộ građien của hàm mục tiêu tại mỗi bước lặp. Khi hàm mục tiêu là trung bình của nhiều hàm thành phần, ta có thể thay građien đầy đủ bằng một ước lượng được tính từ các thành phần lấy mẫu ngẫu nhiên. Đó là cơ sở của phương pháp hạ dốc ngẫu nhiên (SGD). Khung phân tích dưới đây xét ước lượng không chệch với phương sai bị chặn có thể đối chiếu với \cite{bottou2018optimization}.
+
+\subsubsection{Bài toán tối ưu và các ký hiệu}
+Xét bài toán không ràng buộc:
+\begin{equation}
+ \min_{\mathbf{x}\in\mathbb{R}^{n}}f(\mathbf{x}),
+ \qquad f(\mathbf{x})=\frac{1}{N}\sum_{i=1}^{N}f_i(\mathbf{x}).
+ \label{eq:sgd-objective}
+\end{equation}
+Trong đó:
+\begin{itemize}
+    \item $\mathbf{x}$: vectơ gồm $n$ tham số cần xác định.
+    \item $N$: số lượng hàm thành phần.
+    \item $f_i:\mathbb{R}^{n}\to\mathbb{R}$: hàm mất mát ứng với mẫu thứ $i$.
+    \item $f$: hàm mục tiêu trung bình.
+    \item $i$ và $k$: chỉ số $i$ đại diện cho mẫu, còn chỉ số $k$ (trong $\mathbf{x}^{k}$) đại diện cho bước lặp.
+    \item $\|\cdot\|$: chuẩn Euclid (áp dụng trong toàn bộ phần này).
+    \item $\mathbf{u}^{T}\mathbf{v}$: tích vô hướng của hai vectơ.
+\end{itemize}
+Nếu mỗi $f_i$ khả vi, tính tuyến tính của phép lấy đạo hàm cho ta:
+\begin{equation}
+     \nabla f(\mathbf{x})=\frac{1}{N}\sum_{i=1}^{N}\nabla f_i(\mathbf{x}).
+     \label{eq:sgd-full-gradient}
+\end{equation}
+Ở đây, $\nabla f_i(\mathbf{x})\in\mathbb{R}^{n}$ là građien của hàm thành phần và $\nabla f(\mathbf{x})$ là građien đầy đủ. Công thức này cho thấy một bước hạ dốc đầy đủ đòi hỏi tính tổng $N$ građien thành phần.
+
+Tại bước $k$, đặt $\mathcal{F}_k$ là thông tin đã có trước khi lấy mẫu mới, bao gồm điểm đầu và các chỉ số đã lấy ở những bước trước. Khi đó,
+$\mathbf{x}^{k}$ đã được xác định khi biết $\mathcal{F}_k$.
+Ký hiệu:
+\[\mathbb{E}_k[Z]:=\mathbb{E}[Z\mid\mathcal{F}_k]\]
+là kỳ vọng có điều kiện của đại lượng ngẫu nhiên $Z$; $\mathbb{E}[Z]$ là kỳ vọng theo toàn bộ quá trình lấy mẫu. Các chiều dài bước được chọn trước,
+và mọi kỳ vọng xuất hiện dưới đây được giả thiết hữu hạn.
+
+\subsubsection{Ước lượng građien và tính không chệch}
+\paragraph{Lấy một mẫu.}
+Chọn $i_k$ đều trên $\{1,\ldots,N\}$, độc lập với $\mathcal{F}_k$, rồi đặt
+\begin{equation}
+ \mathbf{g}_k=\nabla f_{i_k}(\mathbf{x}^{k}).
+ \label{eq:sgd-single}
+\end{equation}
+Trong đó, $i_k$ là chỉ số ngẫu nhiên của mẫu được chọn và $\mathbf{g}_k$
+là ước lượng građien tại bước $k$. Vì mỗi chỉ số có xác suất $1/N$, ta có
+\begin{align}
+ \mathbb{E}_k[\mathbf{g}_k]
+ &=\sum_{i=1}^{N}\mathbb{P}(i_k=i\mid\mathcal{F}_k)
+                 \nabla f_i(\mathbf{x}^{k})\notag\\
+ &=\frac{1}{N}\sum_{i=1}^{N}\nabla f_i(\mathbf{x}^{k})
+ =\nabla f(\mathbf{x}^{k}).
+ \label{eq:sgd-unbiased}
+\end{align}
+Ở đây, $\mathbb{P}$ ký hiệu xác suất. Đẳng thức cuối chính là tính
+\emph{không chệch}: khi điểm hiện tại được giữ cố định, trung bình của
+ước lượng bằng građien đầy đủ. Điều này không có nghĩa từng
+$\mathbf{g}_k$ bằng $\nabla f(\mathbf{x}^{k})$.
+
+\paragraph{Lấy một lô nhỏ.}
+Chọn $b$ chỉ số $i_{k,1},\ldots,i_{k,b}$ độc lập, phân bố đều và có hoàn lại,
+độc lập với $\mathcal{F}_k$. Đặt
+\begin{equation}
+ \mathbf{g}_k=\frac{1}{b}\sum_{r=1}^{b}
+                   \nabla f_{i_{k,r}}(\mathbf{x}^{k}).
+ \label{eq:sgd-batch}
+\end{equation}
+Trong đó, $b\geq1$ là kích thước lô; $r$ là vị trí trong lô. Một chỉ số
+có thể xuất hiện nhiều lần. Tính tuyến tính của kỳ vọng và
+\eqref{eq:sgd-unbiased} vẫn cho $\mathbb{E}_k[\mathbf{g}_k]=\nabla f(\mathbf{x}^{k})$.
+
+Giả sử phương sai của một građien thành phần thỏa
+\begin{equation}
+ \frac{1}{N}\sum_{i=1}^{N}
+ \|\nabla f_i(\mathbf{x}^{k})-\nabla f(\mathbf{x}^{k})\|^2
+ \leq\sigma^2
+ \quad\text{gần chắc chắn, với mọi }k.
+ \label{eq:sgd-sample-variance}
+\end{equation}
+Trong đó, $\sigma^2\geq0$ là một cận chung dọc theo các điểm lặp;
+``gần chắc chắn'' có nghĩa là đúng với xác suất bằng một.
+Với vectơ ngẫu nhiên, phương sai ở đây được hiểu là kỳ vọng của bình
+phương chuẩn sai lệch so với kỳ vọng.
+
+Đặt $\boldsymbol{\xi}_{k,r}=\nabla f_{i_{k,r}}(\mathbf{x}^{k})-
+\nabla f(\mathbf{x}^{k})$. Các vectơ này độc lập có điều kiện và có kỳ vọng
+có điều kiện bằng không. Vì thế, với $r\ne s$,
+$\mathbb{E}_k[\boldsymbol{\xi}_{k,r}^{T}\boldsymbol{\xi}_{k,s}]=0$.
+Khai triển bình phương chuẩn cho
+\begin{align}
+ \mathbb{E}_k\|\mathbf{g}_k-\nabla f(\mathbf{x}^{k})\|^2
+ &=\frac{1}{b^2}\mathbb{E}_k
+                  \left\|\sum_{r=1}^{b}\boldsymbol{\xi}_{k,r}\right\|^2\notag\\
+ &=\frac{1}{b^2}\left\{
+   \sum_{r=1}^{b}\mathbb{E}_k\|\boldsymbol{\xi}_{k,r}\|^2
+   +2\sum_{r<s}\mathbb{E}_k[
+           \boldsymbol{\xi}_{k,r}^{T}\boldsymbol{\xi}_{k,s}]\right\}\notag\\
+ &\leq\frac{\sigma^2}{b}=:V.
+ \label{eq:sgd-variance}
+\end{align}
+Như vậy, $V$ là cận phương sai của ước lượng dùng trong một bước cập nhật.
+Sự giảm phương sai theo $1/b$ trong phép tính này dựa vào tính độc lập
+của các lần lấy mẫu, không chỉ dựa vào việc lấy trung bình.
+
+\paragraph{Phạm vi của giả thiết lấy mẫu.}
+Nếu lấy đều một tập con mới gồm $b$ chỉ số phân biệt, độc lập với
+$\mathcal{F}_k$, thì với $N>1$ và $1\leq b\leq N$, cận tương ứng là
+\begin{equation}
+ V=\frac{N-b}{b(N-1)}\sigma^2.
+ \label{eq:sgd-without-replacement}
+\end{equation}
+Để thấy hệ số hiệu chỉnh, đặt
+$\mathbf{h}_i=\nabla f_i(\mathbf{x}^{k})-\nabla f(\mathbf{x}^{k})$ và
+$S_k=N^{-1}\sum_i\|\mathbf{h}_i\|^2$. Do $\sum_i\mathbf{h}_i=0$, tích
+vô hướng trung bình của hai phần tử lấy khác nhau bằng
+\[
+ \frac{1}{N(N-1)}\sum_{i\ne j}\mathbf{h}_i^T\mathbf{h}_j
+ =-\frac{S_k}{N-1}.
+\]
+Do đó, phương sai của trung bình lô là
+$b^{-2}[bS_k-b(b-1)S_k/(N-1)]
+=(N-b)S_k/[b(N-1)]$, suy ra \eqref{eq:sgd-without-replacement}.
+Khi $b=N$, ước lượng này là građien đầy đủ và $V=0$.
+Ngược lại, lấy $N$ mẫu có hoàn lại chưa chắc thu được građien đầy đủ.
+Việc xáo trộn dữ liệu một lần rồi lần lượt dùng các lô trong một lượt
+duyệt cũng không tự động thỏa \eqref{eq:sgd-unbiased} có điều kiện theo
+$\mathcal{F}_k$; các định lý sau chỉ áp dụng khi những giả thiết đã nêu
+được đáp ứng.
+
+\subsubsection{Công thức cập nhật và thuật toán}
+
+Thay građien đầy đủ trong phương pháp hạ dốc bằng $\mathbf{g}_k$, ta được
+\begin{equation}
+ \boxed{\mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha_k\mathbf{g}_k,}
+ \qquad k=0,1,2,\ldots.
+ \label{eq:sgd-update}
+\end{equation}
+Trong đó, $\alpha_k>0$ là chiều dài bước và $\mathbf{x}^{k+1}$ là điểm lặp mới. Trường hợp $b=1$ là SGD từng mẫu; trường hợp $b>1$ dùng trung bình lô nhỏ. Một bước với $-\mathbf{g}_k$ có thể làm tăng $f$, vì hướng này không nhất thiết là hướng giảm của hàm mục tiêu đầy đủ.
+
+\paragraph{Các bước thực hiện:}
+\begin{enumerate}
+ \item Chọn $\mathbf{x}^{0}$, kích thước lô $b$, dãy bước
+ $\{\alpha_k\}_{k\geq0}$ và số bước $T\geq1$.
+ \item Với $k=0,\ldots,T-1$, lấy lô mới theo quy tắc đã nêu,
+ tính $\mathbf{g}_k$ bằng \eqref{eq:sgd-batch}, rồi cập nhật
+ $\mathbf{x}^{k+1}$ bằng \eqref{eq:sgd-update}.
+ \item Chọn đầu ra theo kết quả cần sử dụng: điểm cuối $\mathbf{x}^{T}$,
+ trung bình các điểm lặp, hoặc một điểm lặp chọn ngẫu nhiên.
+\end{enumerate}
+Việc chỉ rõ đầu ra là cần thiết, vì cận hội tụ cho trung bình các điểm lặp không tự động là cận cho điểm cuối.
+\subsubsection{Bất đẳng thức nền tảng}
+Giả sử $f$ khả vi liên tục và građien liên tục Lipschitz với hằng số $L>0$:
+\begin{equation}
+ \|\nabla f(\mathbf{x})-\nabla f(\mathbf{y})\|
+ \leq L\|\mathbf{x}-\mathbf{y}\|,
+ \qquad \mathbf{x},\mathbf{y}\in\mathbb{R}^{n}.
+ \label{eq:sgd-smooth}
+\end{equation}
+Ta gọi $f$ là hàm $L$-trơn. Ở đây $L$ là hằng số trơn, không phải số lớp
+của mạng nơ-ron. Đặt $\mathbf{d}=\mathbf{y}-\mathbf{x}$, định lý cơ bản
+của giải tích cho
+\begin{align*}
+ f(\mathbf{y})-f(\mathbf{x})-\nabla f(\mathbf{x})^T\mathbf{d}
+ &=\int_0^1[\nabla f(\mathbf{x}+t\mathbf{d})-
+                 \nabla f(\mathbf{x})]^T\mathbf{d}\,\mathrm{d}t\\
+ &\leq\int_0^1 Lt\|\mathbf{d}\|^2\,\mathrm{d}t
+ =\frac{L}{2}\|\mathbf{d}\|^2.
+\end{align*}
+Trong đó, $t\in[0,1]$ là tham số trên đoạn nối hai điểm; bất đẳng thức
+dùng Cauchy-Schwarz và \eqref{eq:sgd-smooth}. Suy ra
+\begin{equation}
+ f(\mathbf{y})\leq f(\mathbf{x})+
+ \nabla f(\mathbf{x})^T(\mathbf{y}-\mathbf{x})
+ +\frac{L}{2}\|\mathbf{y}-\mathbf{x}\|^2.
+ \label{eq:sgd-descent-lemma}
+\end{equation}
+Đây là cận trên bậc hai suy ra từ tính trơn; chưa cần giả thiết lồi.
+
+Thay $\mathbf{y}=\mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha_k\mathbf{g}_k$
+vào \eqref{eq:sgd-descent-lemma}, ta được
+\begin{equation}
+ f(\mathbf{x}^{k+1})\leq f(\mathbf{x}^{k})
+ -\alpha_k\nabla f(\mathbf{x}^{k})^T\mathbf{g}_k
+ +\frac{L\alpha_k^2}{2}\|\mathbf{g}_k\|^2.
+ \label{eq:sgd-one-step}
+\end{equation}
+Để lấy kỳ vọng, đặt $\boldsymbol{\varepsilon}_k=
+\mathbf{g}_k-\nabla f(\mathbf{x}^{k})$. Khi đó
+$\mathbb{E}_k[\boldsymbol{\varepsilon}_k]=0$ và
+\begin{align}
+ \mathbb{E}_k\|\mathbf{g}_k\|^2
+ &=\|\nabla f(\mathbf{x}^{k})\|^2
+ +2\nabla f(\mathbf{x}^{k})^T\mathbb{E}_k[\boldsymbol{\varepsilon}_k]
+ +\mathbb{E}_k\|\boldsymbol{\varepsilon}_k\|^2\notag\\
+ &\leq\|\nabla f(\mathbf{x}^{k})\|^2+V.
+ \label{eq:sgd-second-moment}
+\end{align}
+Vectơ $\boldsymbol{\varepsilon}_k$ biểu diễn sai số ngẫu nhiên của ước lượng. Lấy kỳ vọng có điều kiện trong \eqref{eq:sgd-one-step} và dùng
+\eqref{eq:sgd-unbiased}, \eqref{eq:sgd-second-moment}, ta thu được
+\begin{equation}
+ \boxed{\begin{aligned}
+ \mathbb{E}_k[f(\mathbf{x}^{k+1})]
+ \leq{}& f(\mathbf{x}^{k})
+ -\alpha_k\left(1-\frac{L\alpha_k}{2}\right)
+           \|\nabla f(\mathbf{x}^{k})\|^2
+ +\frac{L\alpha_k^2V}{2}.
+ \end{aligned}}
+ \label{eq:sgd-fundamental}
+\end{equation}
+Số hạng cuối là phần phát sinh do phương sai. Khi $V=0$, bất đẳng thức
+trở về cận của hạ dốc với građien chính xác. Khi $0<\alpha_k\leq1/L$,
+ta có dạng đơn giản hơn:
+\begin{equation}
+ \mathbb{E}_k[f(\mathbf{x}^{k+1})]
+ \leq f(\mathbf{x}^{k})-\frac{\alpha_k}{2}
+           \|\nabla f(\mathbf{x}^{k})\|^2
+           +\frac{L\alpha_k^2V}{2}.
+ \label{eq:sgd-fundamental-simple}
+\end{equation}
+Cận này không bảo đảm kỳ vọng của hàm mục tiêu giảm ở mọi bước khi
+građien nhỏ so với mức nhiễu.
+
+\subsubsection{Sự hội tụ trong trường hợp tổng quát}
+\begin{theorem}\label{thm:sgd-nonconvex}
+Giả sử $f$ là hàm $L$-trơn, bị chặn dưới bởi $f_{\inf}\in\mathbb{R}$,
+và các ước lượng thỏa
+$\mathbb{E}_k[\mathbf{g}_k]=\nabla f(\mathbf{x}^{k})$,
+$\mathbb{E}_k\|\mathbf{g}_k-\nabla f(\mathbf{x}^{k})\|^2\leq V$.
+Với điểm đầu xác định và $0<\alpha_k\leq1/L$, SGD thỏa
+\begin{equation}
+ \sum_{k=0}^{T-1}\alpha_k\mathbb{E}\|\nabla f(\mathbf{x}^{k})\|^2
+ \leq 2\Delta_0+LV\sum_{k=0}^{T-1}\alpha_k^2,
+ \qquad \Delta_0:=f(\mathbf{x}^{0})-f_{\inf}.
+ \label{eq:sgd-weighted}
+\end{equation}
+\end{theorem}
+Trong đó, $T\geq1$ là số bước và $\Delta_0\geq0$ là độ chênh ban đầu
+so với cận dưới; $f_{\inf}$ không nhất thiết là giá trị đạt được tại một điểm.
+
+\begin{proof}
+Lấy kỳ vọng toàn phần trong \eqref{eq:sgd-fundamental-simple}, dùng
+$\mathbb{E}[\mathbb{E}_k Z]=\mathbb{E}Z$, rồi chuyển vế:
+\[
+ \frac{\alpha_k}{2}\mathbb{E}\|\nabla f(\mathbf{x}^{k})\|^2
+ \leq\mathbb{E}f(\mathbf{x}^{k})-
+       \mathbb{E}f(\mathbf{x}^{k+1})+\frac{LV\alpha_k^2}{2}.
+\]
+Cộng từ $k=0$ đến $T-1$, các giá trị hàm ở giữa triệt tiêu. Sau đó dùng
+$\mathbb{E}f(\mathbf{x}^{T})\geq f_{\inf}$ và nhân hai vế với $2$,
+ta được \eqref{eq:sgd-weighted}.
+\end{proof}
+
+\paragraph{Bước cố định.}
+Nếu $\alpha_k\equiv\alpha\in(0,1/L]$, chia \eqref{eq:sgd-weighted}
+cho $\alpha T$ cho
+\begin{equation}
+ \frac{1}{T}\sum_{k=0}^{T-1}\mathbb{E}\|\nabla f(\mathbf{x}^{k})\|^2
+ \leq\frac{2\Delta_0}{\alpha T}+L\alpha V.
+ \label{eq:sgd-nonconvex-constant}
+\end{equation}
+Nếu $R$ được chọn đều trên $\{0,\ldots,T-1\}$, độc lập với quá trình
+lặp, thì vế trái bằng $\mathbb{E}\|\nabla f(\mathbf{x}^{R})\|^2$.
+Do đó, kết quả kiểm soát một điểm lặp chọn ngẫu nhiên, và cũng kiểm soát
+$\min_{0\leq k<T}\mathbb{E}\|\nabla f(\mathbf{x}^{k})\|^2$.
+
+Khi $V>0$ và $\alpha$ được giữ cố định, cận còn lại mức $L\alpha V$ khi
+$T\to\infty$. Đây là giới hạn của bảo đảm từ bất đẳng thức trên, không
+phải khẳng định mọi bài toán đều có sai số giới hạn đúng bằng mức đó.
+Nếu biết trước $T$, chọn
+$\alpha=c/\sqrt{T}$ với $0<c\leq1/L$ cho
+\begin{equation}
+ \mathbb{E}\|\nabla f(\mathbf{x}^{R})\|^2
+ \leq\frac{2\Delta_0/c+LcV}{\sqrt{T}}.
+ \label{eq:sgd-nonconvex-rate}
+\end{equation}
+Trong đó, $c$ là hằng số độc lập với $T$, còn $\alpha$ cố định trong mỗi
+lần chạy dài $T$ bước. Tốc độ $O(T^{-1/2})$ ở đây dành cho
+\emph{kỳ vọng bình phương chuẩn građien}. Bởi Cauchy--Schwarz,
+$\mathbb{E}\|\nabla f(\mathbf{x}^{R})\|
+\leq\sqrt{\mathbb{E}\|\nabla f(\mathbf{x}^{R})\|^2}=O(T^{-1/4})$.
+Không được nhầm hai tiêu chuẩn sai số này. Ký hiệu $O(T^{-p})$ nghĩa là
+đại lượng đang xét bị chặn trên bởi $C T^{-p}$ với một hằng số $C$ không
+phụ thuộc $T$, khi $T$ đủ lớn.
+
+\paragraph{Bước giảm dần.}
+Nếu
+\begin{equation}
+ \sum_{k=0}^{\infty}\alpha_k=\infty,
+ \qquad \sum_{k=0}^{\infty}\alpha_k^2<\infty,
+ \qquad 0<\alpha_k\leq1/L,
+ \label{eq:sgd-diminishing}
+\end{equation}
+thì chia \eqref{eq:sgd-weighted} cho $\sum_{k<T}\alpha_k$ cho thấy
+trung bình có trọng số của $\mathbb{E}\|\nabla f(\mathbf{x}^{k})\|^2$
+hội tụ về không. Ví dụ, $\alpha_k=c/(k+1)^{\gamma}$ với
+$0<c\leq1/L$ và $1/2<\gamma\leq1$ thỏa các điều kiện này.
+Kết luận vừa chứng minh chưa đủ để suy ra dãy $\mathbf{x}^{k}$ hội tụ,
+hoặc mọi điểm lặp đều tiến đến một nghiệm tối ưu toàn cục.
+
+\subsubsection{Sự hội tụ đối với hàm lồi}
+
+\begin{theorem}\label{thm:sgd-convex}
+Giữ các giả thiết về tính trơn và ước lượng građien ở
+Định lý~\ref{thm:sgd-nonconvex}. Giả sử thêm $f$ lồi và có nghiệm
+$\mathbf{x}^{*}$; đặt $f^{*}=f(\mathbf{x}^{*})$.
+Với $\alpha_k\equiv\alpha\in(0,1/(2L)]$ và
+$\overline{\mathbf{x}}^{T}=T^{-1}\sum_{k=0}^{T-1}\mathbf{x}^{k}$, ta có
+\begin{equation}
+ \mathbb{E}[f(\overline{\mathbf{x}}^{T})]-f^{*}
+ \leq\frac{D_0^2}{\alpha T}+\alpha V,
+ \qquad D_0:=\|\mathbf{x}^{0}-\mathbf{x}^{*}\|.
+ \label{eq:sgd-convex-rate}
+\end{equation}
+\end{theorem}
+Ở đây, $\mathbf{x}^{*}$ là một nghiệm tối ưu cố định,
+$D_0$ là khoảng cách ban đầu đến nghiệm đó và
+$\overline{\mathbf{x}}^{T}$ là trung bình cộng các điểm từ bước $0$ đến $T-1$.
+
+\begin{proof}
+Từ công thức cập nhật, khai triển bình phương khoảng cách đến nghiệm:
+\begin{align*}
+ \|\mathbf{x}^{k+1}-\mathbf{x}^{*}\|^2
+ ={}&\|\mathbf{x}^{k}-\mathbf{x}^{*}\|^2
+ -2\alpha(\mathbf{x}^{k}-\mathbf{x}^{*})^T\mathbf{g}_k
+ +\alpha^2\|\mathbf{g}_k\|^2.
+\end{align*}
+Lấy kỳ vọng có điều kiện và dùng \eqref{eq:sgd-second-moment}:
+\begin{align}
+ \mathbb{E}_k\|\mathbf{x}^{k+1}-\mathbf{x}^{*}\|^2
+ \leq{}&\|\mathbf{x}^{k}-\mathbf{x}^{*}\|^2
+ -2\alpha(\mathbf{x}^{k}-\mathbf{x}^{*})^T\nabla f(\mathbf{x}^{k})
+ \notag\\
+ &+\alpha^2\|\nabla f(\mathbf{x}^{k})\|^2+\alpha^2 V.
+ \label{eq:sgd-distance}
+\end{align}
+Tính lồi khả vi cho
+\[
+ f(\mathbf{x}^{*})\geq f(\mathbf{x}^{k})+
+ \nabla f(\mathbf{x}^{k})^T(\mathbf{x}^{*}-\mathbf{x}^{k}),
+\]
+nên $(\mathbf{x}^{k}-\mathbf{x}^{*})^T\nabla f(\mathbf{x}^{k})
+\geq f(\mathbf{x}^{k})-f^{*}$.
+Mặt khác, áp dụng \eqref{eq:sgd-descent-lemma} tại
+$\mathbf{y}=\mathbf{x}^{k}-L^{-1}\nabla f(\mathbf{x}^{k})$ cho
+\[
+ f^{*}\leq f(\mathbf{y})\leq f(\mathbf{x}^{k})-
+             \frac{1}{2L}\|\nabla f(\mathbf{x}^{k})\|^2.
+\]
+Suy ra $\|\nabla f(\mathbf{x}^{k})\|^2
+\leq2L[f(\mathbf{x}^{k})-f^{*}]$. Thay hai cận này vào
+\eqref{eq:sgd-distance}, ta được
+\begin{align*}
+ 2\alpha(1-L\alpha)[f(\mathbf{x}^{k})-f^{*}]
+ \leq{}&\|\mathbf{x}^{k}-\mathbf{x}^{*}\|^2
+       -\mathbb{E}_k\|\mathbf{x}^{k+1}-\mathbf{x}^{*}\|^2
+       +\alpha^2V.
+\end{align*}
+Vì $\alpha\leq1/(2L)$, hệ số $2\alpha(1-L\alpha)\geq\alpha$.
+Lấy kỳ vọng toàn phần, cộng $T$ bất đẳng thức và bỏ số hạng
+$-\mathbb{E}\|\mathbf{x}^{T}-\mathbf{x}^{*}\|^2\leq0$, ta có
+\[
+ \frac{1}{T}\sum_{k=0}^{T-1}\mathbb{E}[f(\mathbf{x}^{k})-f^{*}]
+ \leq\frac{D_0^2}{\alpha T}+\alpha V.
+\]
+Cuối cùng, tính lồi cho
+$f(\overline{\mathbf{x}}^{T})\leq T^{-1}\sum_{k=0}^{T-1}f(\mathbf{x}^{k})$.
+Lấy kỳ vọng suy ra \eqref{eq:sgd-convex-rate}.
+\end{proof}
+
+Nếu $D_0>0$, $V>0$ và $T\geq4L^2D_0^2/V$, lựa chọn
+$\alpha=D_0/\sqrt{VT}$ thỏa điều kiện bước và cân bằng hai số hạng:
+\begin{equation}
+ \mathbb{E}[f(\overline{\mathbf{x}}^{T})]-f^{*}
+ \leq\frac{2D_0\sqrt{V}}{\sqrt{T}}
+ =\frac{2D_0\sigma}{\sqrt{bT}}
+ \quad\text{với lấy mẫu có hoàn lại}.
+ \label{eq:sgd-convex-balanced}
+\end{equation}
+Đây là một lựa chọn phục vụ phân tích vì $D_0$ và $V$ có thể chưa biết.
+Tổng quát hơn, chọn $\alpha=c/\sqrt{T}$ với $0<c\leq1/(2L)$
+cũng cho cận $O(T^{-1/2})$.
+Nếu $V=0$, lấy $\alpha=1/(2L)$ trong \eqref{eq:sgd-convex-rate}
+cho cận $2LD_0^2/T$; hằng số này không tối ưu cho hạ dốc đầy đủ.
+
+\subsubsection{Sự hội tụ đối với hàm lồi mạnh}
+
+Giả sử thêm $f$ lồi mạnh với tham số $m>0$, nghĩa là
+\begin{equation}
+ f(\mathbf{y})\geq f(\mathbf{x})+
+ \nabla f(\mathbf{x})^T(\mathbf{y}-\mathbf{x})
+ +\frac{m}{2}\|\mathbf{y}-\mathbf{x}\|^2,
+ \qquad \mathbf{x},\mathbf{y}\in\mathbb{R}^{n}.
+ \label{eq:sgd-strong-convexity}
+\end{equation}
+Ở đây $m$ đo mức lồi mạnh; với $f$ đồng thời $L$-trơn thì $0<m\leq L$.
+Nghiệm tối ưu $\mathbf{x}^{*}$ là duy nhất.
+
+Hoàn thành bình phương đối với $\mathbf{d}=\mathbf{y}-\mathbf{x}$:
+\[
+ \nabla f(\mathbf{x})^T\mathbf{d}+\frac{m}{2}\|\mathbf{d}\|^2
+ =\frac{m}{2}\left\|\mathbf{d}+\frac{1}{m}\nabla f(\mathbf{x})\right\|^2
+ -\frac{1}{2m}\|\nabla f(\mathbf{x})\|^2.
+\]
+Giá trị nhỏ nhất theo $\mathbf{d}$ là
+$-\|\nabla f(\mathbf{x})\|^2/(2m)$. Lấy infimum theo $\mathbf{y}$
+trong \eqref{eq:sgd-strong-convexity} suy ra
+\begin{equation}
+ \|\nabla f(\mathbf{x})\|^2\geq2m[f(\mathbf{x})-f^{*}].
+ \label{eq:sgd-gradient-gap}
+\end{equation}
+Đây là cận dưới cho bình phương chuẩn građien theo sai số giá trị hàm.
+Đặt $\delta_k=\mathbb{E}[f(\mathbf{x}^{k})-f^{*}]$.
+Thế \eqref{eq:sgd-gradient-gap} vào
+\eqref{eq:sgd-fundamental-simple}, lấy kỳ vọng, ta được
+\begin{equation}
+ \delta_{k+1}\leq(1-m\alpha_k)\delta_k+
+                         \frac{LV\alpha_k^2}{2},
+ \qquad 0<\alpha_k\leq1/L.
+ \label{eq:sgd-strong-recursion}
+\end{equation}
+
+\paragraph{Bước cố định và mức sai số do nhiễu.}
+Với $\alpha_k\equiv\alpha\in(0,1/L]$, đặt $\rho=1-m\alpha\in[0,1)$.
+Lặp lại \eqref{eq:sgd-strong-recursion} và tính tổng cấp số nhân cho
+\begin{align}
+ \delta_T
+ &\leq\rho^T\delta_0+\frac{LV\alpha^2}{2}
+                    \sum_{j=0}^{T-1}\rho^j\notag\\
+ &=\rho^T\delta_0+
+        \frac{L\alpha V}{2m}(1-\rho^T).
+ \label{eq:sgd-strong-fixed}
+\end{align}
+Trong đó, $\rho$ là hệ số suy giảm của phần sai số ban đầu.
+Khi $V>0$, công thức chỉ bảo đảm
+$\limsup_{T\to\infty}\delta_T\leq L\alpha V/(2m)$.
+Khi $V=0$, phần nhiễu biến mất và sai số được chặn bởi một dãy hình học.
+Do tính lồi mạnh tại nghiệm,
+$f(\mathbf{x})-f^{*}\geq(m/2)\|\mathbf{x}-\mathbf{x}^{*}\|^2$;
+vì vậy các cận trên cho $\delta_T$ còn cho
+$\mathbb{E}\|\mathbf{x}^{T}-\mathbf{x}^{*}\|^2\leq2\delta_T/m$.
+
+\paragraph{Bước giảm dần và cận $O(T^{-1})$.}
+Chọn một số nguyên $k_0\geq2L/m$ và đặt
+\begin{equation}
+ \alpha_k=\frac{2}{m(k+k_0)},\qquad
+ A=\max\left\{k_0\delta_0,\frac{2LV}{m^2}\right\}.
+ \label{eq:sgd-strong-schedule}
+\end{equation}
+Trong đó, $k_0$ bảo đảm $\alpha_k\leq1/L$ ngay từ bước đầu,
+còn $A$ là hằng số dùng trong cận hội tụ. Ta chứng minh bằng quy nạp rằng
+\begin{equation}
+ \delta_k\leq\frac{A}{k+k_0},\qquad k\geq0.
+ \label{eq:sgd-strong-decreasing}
+\end{equation}
+Với $k=0$, kết quả theo định nghĩa của $A$. Giả sử kết quả đúng tại
+bước $k$ và đặt $t=k+k_0\geq2$. Khi đó \eqref{eq:sgd-strong-recursion}
+cho
+\begin{align*}
+ \delta_{k+1}
+ &\leq\left(1-\frac{2}{t}\right)\frac{A}{t}
+       +\frac{2LV}{m^2t^2}\\
+ &\leq\frac{A}{t}-\frac{A}{t^2}
+ =\frac{A(t-1)}{t^2}
+ \leq\frac{A}{t+1},
+\end{align*}
+trong đó bất đẳng thức thứ hai dùng $A\geq2LV/m^2$, còn bất đẳng thức
+cuối tương đương $(t-1)(t+1)\leq t^2$.
+Như vậy, với tính lồi mạnh và lịch bước đã chỉ rõ, kỳ vọng sai số giá trị
+hàm tại \emph{điểm cuối} có cận $O(T^{-1})$.
+
+\subsection{Phương pháp động lượng}
+\label{sec:momentum}
+
+Phương pháp động lượng bổ sung thông tin dịch chuyển từ bước trước vào
+cập nhật theo građien. Phần này xét dạng động lượng cổ điển của Polyak,
+với hệ số không đổi khi phân tích hội tụ; xem
+\cite[Mục~7.1]{bottou2018optimization}. Trước hết ta xét građien chính xác,
+sau đó trình bày sự kết hợp với SGD. Không đồng nhất phương pháp này
+với phương pháp gia tốc của Nesterov.
+
+\subsubsection{Công thức cập nhật và ý nghĩa của động lượng}
+
+Với điểm đầu $\mathbf{x}^{0}$, đặt $\mathbf{x}^{-1}=\mathbf{x}^{0}$.
+Công thức cập nhật là
+\begin{equation}
+ \boxed{\mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha\nabla f(\mathbf{x}^{k})
+                     +\beta(\mathbf{x}^{k}-\mathbf{x}^{k-1}),}
+ \quad \alpha>0,\quad 0\leq\beta<1.
+ \label{eq:mom-position}
+\end{equation}
+Trong đó, $\alpha$ là chiều dài bước, $\beta$ là hệ số động lượng, còn
+$\beta(\mathbf{x}^{k}-\mathbf{x}^{k-1})$ giữ lại một phần dịch chuyển
+trước đó. Quy ước khởi tạo làm cho số hạng động lượng ở bước đầu bằng
+không. Khi $\beta=0$, thuật toán trở về hạ dốc thông thường.
+
+Đặt $\mathbf{s}^{k}=\mathbf{x}^{k}-\mathbf{x}^{k-1}$, với
+$\mathbf{s}^{0}=0$. Khi đó \eqref{eq:mom-position} tương đương
+\begin{equation}
+ \mathbf{s}^{k+1}=\beta\mathbf{s}^{k}-\alpha\nabla f(\mathbf{x}^{k}),
+ \qquad \mathbf{x}^{k+1}=\mathbf{x}^{k}+\mathbf{s}^{k+1}.
+ \label{eq:mom-displacement}
+\end{equation}
+Vectơ $\mathbf{s}^{k+1}$ là dịch chuyển thực sự của tham số ở bước $k$.
+Khai triển truy hồi:
+\begin{align*}
+ \mathbf{s}^{1}&=-\alpha\nabla f(\mathbf{x}^{0}),\\
+ \mathbf{s}^{2}&=-\alpha\left[
+             \beta\nabla f(\mathbf{x}^{0})+\nabla f(\mathbf{x}^{1})\right],\\
+ \mathbf{s}^{k+1}&=-\alpha\sum_{j=0}^{k}
+                           \beta^{k-j}\nabla f(\mathbf{x}^{j}).
+\end{align*}
+Ở đây $j$ là chỉ số của các bước đã qua, và $\beta^{k-j}$ là trọng số
+suy giảm theo tuổi của građien. Các thành phần cùng dấu có thể tích lũy,
+còn các thành phần đổi dấu có thể triệt tiêu một phần. Đây là cơ chế
+của động lượng, chưa phải một chứng minh rằng thuật toán luôn nhanh hơn.
+
+\subsubsection{Hai quy ước thường dùng cho biến tích lũy}
+
+Một cách cài đặt tương đương với \eqref{eq:mom-position} là
+\begin{equation}
+ \mathbf{v}_{k+1}=\beta\mathbf{v}_k+\nabla f(\mathbf{x}^{k}),
+ \qquad \mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha\mathbf{v}_{k+1},
+ \qquad \mathbf{v}_0=0.
+ \label{eq:mom-v}
+\end{equation}
+Trong đó, $\mathbf{v}_{k+1}$ là tổng građien có trọng số chưa chuẩn hóa;
+quan hệ với dịch chuyển là $\mathbf{s}^{k+1}=-\alpha\mathbf{v}_{k+1}$.
+Một quy ước khác dùng trung bình có trọng số:
+\begin{equation}
+ \mathbf{u}_{k+1}=\beta\mathbf{u}_k+(1-\beta)\nabla f(\mathbf{x}^{k}),
+ \qquad \mathbf{x}^{k+1}=\mathbf{x}^{k}-\eta\mathbf{u}_{k+1},
+ \qquad \mathbf{u}_0=0.
+ \label{eq:mom-u}
+\end{equation}
+Ở đây, $\mathbf{u}_{k+1}$ là biến tích lũy đã nhân hệ số $1-\beta$,
+còn $\eta>0$ là chiều dài bước tương ứng với quy ước này.
+Vì cùng khởi tạo bằng không, quy nạp cho
+\begin{equation}
+ \mathbf{u}_{k+1}=(1-\beta)\mathbf{v}_{k+1},\qquad
+ \alpha=\eta(1-\beta).
+ \label{eq:mom-rescale}
+\end{equation}
+Hai công thức chỉ tạo ra cùng dãy tham số khi có đổi tỉ lệ bước như trên.
+Giữ nguyên giá trị số của bước mà thêm hoặc bỏ $1-\beta$ sẽ thay đổi
+thuật toán. Hơn nữa,
+$\mathbf{u}_{k+1}=(1-\beta)\sum_{j=0}^{k}\beta^{k-j}
+\nabla f(\mathbf{x}^{j})$ có tổng trọng số $1-\beta^{k+1}$;
+với khởi tạo bằng không, tổng này chưa bằng một ở các bước hữu hạn.
+
+Nếu dùng bước thay đổi $\alpha_k$ trong quy ước \eqref{eq:mom-v},
+với $\alpha_{k-1}>0$ và $k\geq1$, thì
+$\mathbf{v}_k=-(\mathbf{x}^{k}-\mathbf{x}^{k-1})/\alpha_{k-1}$.
+Thay vào công thức cập nhật cho
+\begin{equation}
+ \mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha_k\nabla f(\mathbf{x}^{k})
+ +\beta\frac{\alpha_k}{\alpha_{k-1}}
+            (\mathbf{x}^{k}-\mathbf{x}^{k-1}).
+ \label{eq:mom-variable-step}
+\end{equation}
+Do đó, sự tương đương với dạng vị trí có hệ số động lượng đúng bằng
+$\beta$ cần bước không đổi, hoặc cần điều chỉnh hệ số một cách tương ứng.
+
+\subsubsection{Nguồn gốc từ một phương trình vi phân bậc hai}
+
+Một cách giải thích động lượng là xét hệ có lực cản
+\begin{equation}
+ \ddot{\mathbf{x}}(t)+c\dot{\mathbf{x}}(t)
+                        +\nabla f(\mathbf{x}(t))=0.
+ \label{eq:mom-ode}
+\end{equation}
+Trong đó, $t$ là thời gian liên tục; $\dot{\mathbf{x}}$ và
+$\ddot{\mathbf{x}}$ lần lượt là đạo hàm bậc nhất và bậc hai theo thời
+gian; $c>0$ là hệ số lực cản. Với bước thời gian $h>0$, đặt
+$\mathbf{x}^{k}\approx\mathbf{x}(kh)$ và dùng các sai phân
+\[
+ \ddot{\mathbf{x}}(kh)\approx
+ \frac{\mathbf{x}^{k+1}-2\mathbf{x}^{k}+\mathbf{x}^{k-1}}{h^2},
+ \qquad
+ \dot{\mathbf{x}}(kh)\approx
+ \frac{\mathbf{x}^{k}-\mathbf{x}^{k-1}}{h}.
+\]
+Thay các xấp xỉ vào \eqref{eq:mom-ode}, nhân với $h^2$ rồi chuyển vế:
+\begin{align*}
+ &\mathbf{x}^{k+1}-2\mathbf{x}^{k}+\mathbf{x}^{k-1}
+ +ch(\mathbf{x}^{k}-\mathbf{x}^{k-1})
+ +h^2\nabla f(\mathbf{x}^{k})=0,\\
+ &\mathbf{x}^{k+1}=\mathbf{x}^{k}-h^2\nabla f(\mathbf{x}^{k})
+ +(1-ch)(\mathbf{x}^{k}-\mathbf{x}^{k-1}).
+\end{align*}
+Ta nhận được \eqref{eq:mom-position} với $\alpha=h^2$ và $\beta=1-ch$.
+Điều kiện $0<ch\leq1$ tương ứng với $0\leq\beta<1$.
+Đây là một phép rời rạc hóa giải thích cấu trúc thuật toán; tính ổn định
+của hệ liên tục không tự động bảo đảm hội tụ của mọi lựa chọn bước rời rạc.
+
+\subsubsection{Bất đẳng thức năng lượng và sự hội tụ trong trường hợp tổng quát}
+
+Hướng $\mathbf{s}^{k+1}$ có thể không cùng hướng với
+$-\nabla f(\mathbf{x}^{k})$; vì vậy $f(\mathbf{x}^{k})$ không nhất thiết
+giảm từng bước. Ta xét đại lượng kết hợp giá trị hàm và độ lớn dịch chuyển:
+\begin{equation}
+ E_k=f(\mathbf{x}^{k})+\frac{\beta}{2\alpha}\|\mathbf{s}^{k}\|^2.
+ \label{eq:mom-energy}
+\end{equation}
+Trong đó, $E_k$ là năng lượng rời rạc dùng để chứng minh hội tụ.
+Số hạng thứ hai không phải một phần bổ sung vào hàm mục tiêu của bài toán.
+
+\begin{proposition}\label{prop:mom-energy}
+Giả sử $f$ là hàm $L$-trơn. Với $\alpha>0$ và $0\leq\beta<1$ cố định,
+phương pháp \eqref{eq:mom-position} thỏa
+\begin{equation}
+ E_{k+1}\leq E_k-c_{\alpha,\beta}\|\mathbf{s}^{k+1}\|^2,
+ \qquad c_{\alpha,\beta}:=\frac{1-\beta}{\alpha}-\frac{L}{2}.
+ \label{eq:mom-energy-descent}
+\end{equation}
+\end{proposition}
+Hệ số $c_{\alpha,\beta}$ đo mức giảm năng lượng trong cận này.
+
+\begin{proof}
+Tính trơn và $\mathbf{x}^{k+1}-\mathbf{x}^{k}=\mathbf{s}^{k+1}$ cho
+\[
+ f(\mathbf{x}^{k+1})\leq f(\mathbf{x}^{k})+
+ \nabla f(\mathbf{x}^{k})^T\mathbf{s}^{k+1}
+ +\frac{L}{2}\|\mathbf{s}^{k+1}\|^2.
+\]
+Từ \eqref{eq:mom-displacement},
+$\nabla f(\mathbf{x}^{k})=(\beta\mathbf{s}^{k}-\mathbf{s}^{k+1})/\alpha$.
+Thế vào bất đẳng thức trên:
+\begin{align*}
+ f(\mathbf{x}^{k+1})
+ \leq f(\mathbf{x}^{k})+
+ \frac{\beta}{\alpha}(\mathbf{s}^{k})^T\mathbf{s}^{k+1}
+ -\left(\frac{1}{\alpha}-\frac{L}{2}\right)
+                  \|\mathbf{s}^{k+1}\|^2.
+\end{align*}
+Vì $\|\mathbf{s}^{k}-\mathbf{s}^{k+1}\|^2\geq0$, ta có
+$2(\mathbf{s}^{k})^T\mathbf{s}^{k+1}
+\leq\|\mathbf{s}^{k}\|^2+\|\mathbf{s}^{k+1}\|^2$.
+Do $\beta\geq0$, suy ra
+\begin{align*}
+ f(\mathbf{x}^{k+1})
+ \leq f(\mathbf{x}^{k})+\frac{\beta}{2\alpha}\|\mathbf{s}^{k}\|^2
+ -\left(\frac{1}{\alpha}-\frac{L}{2}-\frac{\beta}{2\alpha}\right)
+                              \|\mathbf{s}^{k+1}\|^2.
+\end{align*}
+Cộng $\beta\|\mathbf{s}^{k+1}\|^2/(2\alpha)$ vào hai vế và dùng
+\eqref{eq:mom-energy} thu được \eqref{eq:mom-energy-descent}.
+\end{proof}
+
+\begin{theorem}\label{thm:mom-stationary}
+Giả sử $f$ là hàm $L$-trơn và $f\geq f_{\inf}>-\infty$.
+Nếu
+\begin{equation}
+ 0\leq\beta<1,\qquad 0<\alpha<\frac{2(1-\beta)}{L},
+ \label{eq:mom-safe-step}
+\end{equation}
+thì phương pháp động lượng với $\mathbf{s}^{0}=0$ thỏa
+$\|\nabla f(\mathbf{x}^{k})\|\to0$ và
+\begin{equation}
+ \min_{0\leq k<T}\|\nabla f(\mathbf{x}^{k})\|^2
+ \leq\frac{2(1+\beta^2)[f(\mathbf{x}^{0})-f_{\inf}]}
+             {\alpha^2 c_{\alpha,\beta}T}.
+ \label{eq:mom-stationary-rate}
+\end{equation}
+\end{theorem}
+Trong đó, $c_{\alpha,\beta}>0$ do \eqref{eq:mom-safe-step}.
+Đây là điều kiện đủ xuất phát từ năng lượng đã chọn, không phải miền
+tham số ổn định lớn nhất của mọi bài toán.
+
+\begin{proof}
+Cộng \eqref{eq:mom-energy-descent} từ $k=0$ đến $T-1$, dùng
+$E_0=f(\mathbf{x}^{0})$ và $E_T\geq f_{\inf}$, ta có
+\begin{equation}
+ \sum_{k=0}^{T-1}\|\mathbf{s}^{k+1}\|^2
+ \leq\frac{f(\mathbf{x}^{0})-f_{\inf}}{c_{\alpha,\beta}}.
+ \label{eq:mom-sum-s}
+\end{equation}
+Cận không phụ thuộc $T$ nên chuỗi bình phương dịch chuyển hội tụ;
+do đó $\mathbf{s}^{k}\to0$. Từ
+$\nabla f(\mathbf{x}^{k})=(\beta\mathbf{s}^{k}-\mathbf{s}^{k+1})/\alpha$
+suy ra $\nabla f(\mathbf{x}^{k})\to0$.
+Để có cận hữu hạn bước, dùng
+\[
+ \|\nabla f(\mathbf{x}^{k})\|^2
+ \leq\frac{2}{\alpha^2}
+      \left(\beta^2\|\mathbf{s}^{k}\|^2+\|\mathbf{s}^{k+1}\|^2\right).
+\]
+Cộng các bất đẳng thức, dùng $\mathbf{s}^{0}=0$ và
+\eqref{eq:mom-sum-s}, rồi chặn giá trị nhỏ nhất bằng trung bình cộng,
+ta được \eqref{eq:mom-stationary-rate}.
+\end{proof}
+
+Định lý chỉ bảo đảm tiến đến tính dừng theo chuẩn građien; nó không
+khẳng định dãy tham số hội tụ hay điểm dừng là cực tiểu.
+Nếu thêm tính lồi và dãy điểm lặp bị chặn, thì mỗi điểm tụ
+$\overline{\mathbf{x}}$ thỏa $\nabla f(\overline{\mathbf{x}})=0$ bởi tính
+liên tục của građien, nên là một nghiệm tối ưu toàn cục.
+Nếu $f$ lồi mạnh với tham số $m$, thì
+\[
+ m\|\mathbf{x}^{k}-\mathbf{x}^{*}\|^2
+ \leq(\nabla f(\mathbf{x}^{k})-\nabla f(\mathbf{x}^{*}))^T
+                  (\mathbf{x}^{k}-\mathbf{x}^{*})
+ \leq\|\nabla f(\mathbf{x}^{k})\|\,\|\mathbf{x}^{k}-\mathbf{x}^{*}\|.
+\]
+Bất đẳng thức đầu thu được bằng cách cộng hai bất đẳng thức lồi mạnh
+theo hai thứ tự điểm; ở nghiệm $\nabla f(\mathbf{x}^{*})=0$.
+Vì vậy $\|\mathbf{x}^{k}-\mathbf{x}^{*}\|
+\leq\|\nabla f(\mathbf{x}^{k})\|/m\to0$.
+Lập luận này chứng minh hội tụ với \eqref{eq:mom-safe-step}, nhưng chưa
+cho một tốc độ tăng tốc so với hạ dốc.
+
+\subsubsection{Phân tích trên hàm bậc hai lồi mạnh}
+
+Để chỉ rõ vai trò của động lượng đối với độ điều kiện, xét
+\begin{equation}
+ f(\mathbf{x})=\frac12\mathbf{x}^{T}\mathbf{H}\mathbf{x}
+                       -\mathbf{r}^{T}\mathbf{x}+d,
+ \qquad m\mathbf{I}\preceq\mathbf{H}\preceq L\mathbf{I},\quad m>0.
+ \label{eq:mom-quadratic}
+\end{equation}
+Trong đó, $\mathbf{H}\in\mathbb{R}^{n\times n}$ là ma trận đối xứng
+xác định dương, đồng thời là ma trận Hessian của $f$;
+$\mathbf{r}\in\mathbb{R}^{n}$ và $d\in\mathbb{R}$ là các hệ số;
+$\mathbf{I}$ là ma trận đơn vị. Ký hiệu thứ tự ma trận có nghĩa mọi trị
+riêng của $\mathbf{H}$ nằm trong $[m,L]$.
+Ta có $\nabla f(\mathbf{x})=\mathbf{H}\mathbf{x}-\mathbf{r}$ và nghiệm
+$\mathbf{x}^{*}=\mathbf{H}^{-1}\mathbf{r}$.
+
+Đặt sai số $\mathbf{e}^{k}=\mathbf{x}^{k}-\mathbf{x}^{*}$.
+Trừ $\mathbf{x}^{*}$ khỏi \eqref{eq:mom-position}, dùng
+$\mathbf{H}\mathbf{x}^{*}=\mathbf{r}$, ta được
+\begin{equation}
+ \mathbf{e}^{k+1}=\big[(1+\beta)\mathbf{I}-\alpha\mathbf{H}\big]
+                  \mathbf{e}^{k}-\beta\mathbf{e}^{k-1}.
+ \label{eq:mom-error}
+\end{equation}
+Vì $\mathbf{H}$ đối xứng, tồn tại ma trận trực giao $\mathbf{Q}$ sao cho
+$\mathbf{H}=\mathbf{Q}\boldsymbol{\Lambda}\mathbf{Q}^{T}$, trong đó
+$\mathbf{Q}^{T}\mathbf{Q}=\mathbf{I}$ và
+$\boldsymbol{\Lambda}=\operatorname{diag}(\lambda_1,\ldots,\lambda_n)$.
+Đổi tọa độ $\mathbf{z}^{k}=\mathbf{Q}^{T}\mathbf{e}^{k}$ tách truy hồi
+thành $n$ phương trình vô hướng:
+\begin{equation}
+ z_i^{k+1}=(1+\beta-\alpha\lambda_i)z_i^{k}-\beta z_i^{k-1},
+ \qquad i=1,\ldots,n.
+ \label{eq:mom-mode}
+\end{equation}
+Ở đây, $\lambda_i$ là trị riêng thứ $i$ và $z_i^{k}$ là thành phần sai
+số theo vectơ riêng tương ứng. Thử nghiệm nghiệm dạng $z_i^{k}=r^k$
+dẫn đến đa thức đặc trưng
+\begin{equation}
+ p_i(r)=r^2-a_i r+\beta,
+ \qquad a_i:=1+\beta-\alpha\lambda_i.
+ \label{eq:mom-characteristic}
+\end{equation}
+Biến $r$ trong đa thức là một số vô hướng, không phải vectơ
+$\mathbf{r}$ trong \eqref{eq:mom-quadratic}.
+Sai số trong một hướng tiến về không với mọi điều kiện đầu khi cả hai
+nghiệm đặc trưng có môđun nhỏ hơn một.
+
+\paragraph{Điều kiện ổn định.}
+Với $0\leq\beta<1$, hai nghiệm của $r^2-a_i r+\beta$ nằm trong đĩa đơn
+vị khi và chỉ khi $|a_i|<1+\beta$.
+Thật vậy, nếu hai nghiệm không thực, chúng liên hợp và có môđun
+$\sqrt{\beta}<1$. Nếu chúng thực và $\beta>0$, chúng cùng dấu;
+tích bằng $\beta<1$ nên không thể cả hai cùng ở ngoài đĩa đơn vị.
+Hai điều kiện
+\[
+ p_i(1)=1-a_i+\beta>0,\qquad
+ p_i(-1)=1+a_i+\beta>0
+\]
+loại trừ trường hợp một nghiệm nằm ở hoặc vượt qua mỗi đầu mút $1,-1$.
+Ngược lại, nếu các nghiệm thực đều thuộc $(-1,1)$, hai tích biểu diễn
+$p_i(1)$ và $p_i(-1)$ đều dương. Với $\beta=0$, nghiệm là $0,a_i$ nên
+kết luận cũng đúng. Bởi $a_i=1+\beta-\alpha\lambda_i$, điều kiện trở thành
+\begin{equation}
+ 0<\alpha\lambda_i<2(1+\beta).
+ \label{eq:mom-mode-stability}
+\end{equation}
+Vì vậy, nếu $L$ là trị riêng lớn nhất, miền ổn định cho mọi hướng là
+\begin{equation}
+ 0\leq\beta<1,\qquad 0<\alpha<\frac{2(1+\beta)}{L}.
+ \label{eq:mom-quadratic-stability}
+\end{equation}
+Nếu $L$ chỉ là một cận trên của phổ, đây là điều kiện đủ đồng đều cho
+các trị riêng trong $[m,L]$. Miền này rộng hơn
+\eqref{eq:mom-safe-step}; không có mâu thuẫn, vì ở đây đã khai thác cấu
+trúc bậc hai và không yêu cầu năng lượng \eqref{eq:mom-energy} giảm.
+
+\paragraph{Lựa chọn tham số theo hai đầu mút của phổ.}
+Giả sử $0<m<L$. Tìm $q\in(0,1)$ và đặt $\beta=q^2$ sao cho ở
+$\lambda=m$ đa thức có nghiệm kép $q$, còn ở $\lambda=L$ có nghiệm kép
+$-q$. So sánh hệ số với $(r-q)^2$ và $(r+q)^2$ cho
+\begin{equation}
+ 1+q^2-\alpha m=2q,
+ \qquad 1+q^2-\alpha L=-2q.
+ \label{eq:mom-endpoints}
+\end{equation}
+Tương đương $\alpha m=(1-q)^2$ và $\alpha L=(1+q)^2$.
+Chia hai đẳng thức và lấy căn dương:
+\[
+ \sqrt{\frac{L}{m}}=\frac{1+q}{1-q}.
+\]
+Do đó ta thu được lựa chọn
+\begin{equation}
+ \boxed{\alpha_{\star}=\frac{4}{(\sqrt{L}+\sqrt{m})^2},\qquad
+ \beta_{\star}=\left(\frac{\sqrt{L}-\sqrt{m}}
+                          {\sqrt{L}+\sqrt{m}}\right)^2,}
+ \label{eq:mom-optimal-parameters}
+\end{equation}
+và
+\begin{equation}
+ q=\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1},
+ \qquad \kappa:=\frac{L}{m}>1.
+ \label{eq:mom-factor}
+\end{equation}
+Trong đó, $\kappa$ là số điều kiện phổ nếu $m,L$ là các trị riêng nhỏ
+nhất và lớn nhất; $q$ là hệ số tiệm cận xuất hiện trong truy hồi sai số.
+Với mọi $\lambda_i\in[m,L]$, hệ số
+$1+q^2-\alpha_{\star}\lambda_i$ thuộc $[-2q,2q]$.
+Các nghiệm đặc trưng vì thế là cặp liên hợp có môđun $q$, hoặc nghiệm
+kép $q$ hay $-q$ ở đầu mút. Điều này chứng minh lựa chọn trên kiểm soát
+đồng đều mọi hướng trong phổ, không chỉ hai đầu mút.
+
+Với nghiệm kép, nghiệm của truy hồi có thể chứa thừa số tuyến tính
+theo $k$. Bởi vậy, một cận đúng cho mọi $k\geq0$ có dạng
+\begin{equation}
+ \|\mathbf{x}^{k}-\mathbf{x}^{*}\|\leq C_1(k+1)q^k,
+ \qquad
+ f(\mathbf{x}^{k})-f^{*}\leq\frac{L C_1^2}{2}(k+1)^2q^{2k}.
+ \label{eq:mom-quadratic-rate}
+\end{equation}
+Ở đây $C_1$ là hằng số hữu hạn phụ thuộc bài toán và điều kiện đầu,
+không phụ thuộc $k$. Cận thứ hai dùng
+$f(\mathbf{x}^{k})-f^{*}=\tfrac12(\mathbf{e}^{k})^T
+\mathbf{H}\mathbf{e}^{k}\leq\tfrac{L}{2}\|\mathbf{e}^{k}\|^2$.
+Do có thể có nghiệm kép, không nên viết cận $Cq^k$ cho chuẩn sai số với
+đúng hệ số $q$ mà bỏ qua thừa số đa thức. Tuy nhiên, với mọi
+$\widehat q\in(q,1)$ tồn tại $C_2<\infty$ sao cho
+$\|\mathbf{e}^{k}\|\leq C_2\widehat q^{\,k}$, vì
+$(k+1)(q/\widehat q)^k$ bị chặn. Theo nghĩa này, thuật toán có một cận
+hội tụ tuyến tính, với hệ số tiệm cận không vượt quá $q$.
+Nếu $m=L$, ma trận là $m\mathbf{I}$; lựa chọn
+$\alpha=1/m$, $\beta=0$ đưa đến nghiệm sau một bước.
+
+Để so sánh, hạ dốc trên cùng hàm bậc hai có truy hồi
+$z_i^{k+1}=(1-\alpha\lambda_i)z_i^{k}$.
+Cân bằng hai đầu mút $1-\alpha m=-(1-\alpha L)$ cho
+$\alpha=2/(L+m)$ và hệ số lớn nhất theo môđun là
+\begin{equation}
+ q_{\mathrm{GD}}=\frac{\kappa-1}{\kappa+1}.
+ \label{eq:mom-gd-factor}
+\end{equation}
+Với $\kappa>1$, ta có $q<q_{\mathrm{GD}}$.
+Đây là sự cải thiện hệ số tiệm cận trên mô hình bậc hai khi biết các
+cận phổ thích hợp; nó không bảo đảm mọi bước đầu của động lượng đều
+có sai số nhỏ hơn hạ dốc.
+
+\paragraph{Giới hạn của kết quả tăng tốc.}
+Chứng minh trên sử dụng một ma trận Hessian cố định. Không được chuyển
+nguyên bộ tham số \eqref{eq:mom-optimal-parameters} và cận
+\eqref{eq:mom-quadratic-rate} sang mọi hàm lồi mạnh, trơn nhưng không
+phải bậc hai. Những phản ví dụ về sự không hội tụ với bộ tham số cổ
+điển đã được xây dựng trong \cite[Phụ lục~B]{lessard2016analysis}.
+Cũng không được gán tốc độ $O(T^{-2})$ của một số phương pháp gia tốc
+khác cho động lượng cổ điển chỉ vì các công thức cập nhật có hình thức
+gần nhau.
+
+\subsubsection{Kết hợp động lượng với SGD}
+
+Thay građien đầy đủ bằng ước lượng $\mathbf{g}_k$ của phần trước cho
+\begin{equation}
+ \mathbf{v}_{k+1}=\beta\mathbf{v}_k+\mathbf{g}_k,
+ \qquad \mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha\mathbf{v}_{k+1},
+ \qquad \mathbf{v}_0=0.
+ \label{eq:mom-sgd}
+\end{equation}
+Trong đó, $\mathbf{g}_k$ được tính từ lô mới và không chệch tại
+$\mathbf{x}^{k}$; $\mathbf{v}_{k+1}$ tích lũy građien của nhiều bước.
+Với bước không đổi, công thức tương đương
+$\mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha\mathbf{g}_k+
+\beta(\mathbf{x}^{k}-\mathbf{x}^{k-1})$.
+
+\begin{samepage}
+\noindent\textbf{Các bước thực hiện.}\par\nopagebreak[4]
+\begin{enumerate}[label=\arabic*.,leftmargin=*]
+ \item Chọn $\mathbf{x}^{0}$, $\mathbf{v}_0=0$, bước $\alpha>0$,
+ hệ số $0\leq\beta<1$, kích thước lô $b$ và số bước $T$.
+ \item Với $k=0,\ldots,T-1$, lấy lô mới và tính $\mathbf{g}_k$.
+ \item Cập nhật $\mathbf{v}_{k+1}=\beta\mathbf{v}_k+\mathbf{g}_k$,
+ sau đó cập nhật $\mathbf{x}^{k+1}=\mathbf{x}^{k}-\alpha\mathbf{v}_{k+1}$.
+\end{enumerate}
+\end{samepage}
+
+Mặc dù $\mathbb{E}_k[\mathbf{g}_k]=\nabla f(\mathbf{x}^{k})$, ta có
+\begin{equation}
+ \mathbb{E}_k[\mathbf{v}_{k+1}]=\beta\mathbf{v}_k+
+                                  \nabla f(\mathbf{x}^{k}).
+ \label{eq:mom-conditional-mean}
+\end{equation}
+Do đó, biến tích lũy không phải một ước lượng không chệch của riêng
+građien hiện tại. Không thể thế $\mathbf{v}_{k+1}$ vào vị trí
+$\mathbf{g}_k$ trong các định lý SGD mà giữ nguyên chứng minh.
+
+Để phân biệt việc làm trơn nhiễu với hội tụ, xét riêng mô hình cố định
+$\mathbf{g}_j=\mathbf{g}+\boldsymbol{\varepsilon}_j$, trong đó
+$\mathbf{g}$ là vectơ không đổi, các nhiễu độc lập có kỳ vọng không và
+$\mathbb{E}\|\boldsymbol{\varepsilon}_j\|^2=V$.
+Với quy ước đã chuẩn hóa $\mathbf{u}_0=0$,
+$\mathbf{u}_{k+1}=\beta\mathbf{u}_k+(1-\beta)\mathbf{g}_k$, khai triển cho
+\begin{align}
+ \mathbb{E}[\mathbf{u}_{k+1}]&=(1-\beta^{k+1})\mathbf{g},\notag\\
+ \mathbb{E}\|\mathbf{u}_{k+1}-\mathbb{E}\mathbf{u}_{k+1}\|^2
+ &=(1-\beta)^2V\sum_{j=0}^{k}\beta^{2(k-j)}\notag\\
+ &=\frac{1-\beta}{1+\beta}
+             (1-\beta^{2(k+1)})V.
+ \label{eq:mom-noise-smoothing}
+\end{align}
+Các tích chéo bằng không do giả thiết độc lập và kỳ vọng không; tổng
+cấp số nhân bằng $(1-\beta^{2(k+1)})/(1-\beta^2)$.
+Khi $k$ lớn, phương sai của trung bình chuẩn hóa tiến đến
+$V(1-\beta)/(1+\beta)$.
+Kết luận này chỉ áp dụng cho mô hình građien cố định vừa nêu.
+Trong tối ưu hóa, $\nabla f(\mathbf{x}^{j})$ thay đổi theo $j$ và các
+điểm lặp phụ thuộc nhiễu quá khứ; hiệu ứng ghi nhớ còn gây độ trễ.
+Hơn nữa, biến chưa chuẩn hóa $\mathbf{v}=\mathbf{u}/(1-\beta)$ trong
+cùng mô hình có phương sai giới hạn $V/(1-\beta^2)$.
+Vì vậy, không thể kết luận vô điều kiện rằng mọi dạng động lượng đều
+làm giảm phương sai của bước cập nhật.
+
+\subsubsection{Áp dụng cho tham số của mạng nơ-ron}
+
+Gọi $D$ là số lớp có tham số, $n_l$ là số đơn vị của lớp $l$
+ và $n_0$ là số thành phần đầu vào.
+Với $l=1,\ldots,D$, ký hiệu
+$\mathbf{W}^{[l]}\in\mathbb{R}^{n_l\times n_{l-1}}$ là ma trận trọng số,
+$\mathbf{b}^{[l]}\in\mathbb{R}^{n_l}$ là vectơ độ lệch và
+$\mathbf{a}^{[l]}\in\mathbb{R}^{n_l}$ là vectơ đầu ra lớp đối với một mẫu.
+Chỉ số lớp luôn đặt trong ngoặc vuông. Vectơ $\mathbf{x}$ ở các phần
+trước có thể được hiểu là vectơ ghép toàn bộ phần tử của các
+$\mathbf{W}^{[l]}$ và $\mathbf{b}^{[l]}$.
+
+Đặt $\widehat f_k$ là mất mát trung bình trên lô tại bước $k$,
+$\mathbf{G}_{W,k}^{[l]}=\nabla_{\mathbf{W}^{[l]}}\widehat f_k$
+và $\mathbf{g}_{b,k}^{[l]}=\nabla_{\mathbf{b}^{[l]}}\widehat f_k$,
+đều được tính tại bộ tham số hiện tại. Khi đó SGD cập nhật theo từng khối:
+\begin{equation}
+ \mathbf{W}_{k+1}^{[l]}=\mathbf{W}_{k}^{[l]}-
+                         \alpha_k\mathbf{G}_{W,k}^{[l]},\qquad
+ \mathbf{b}_{k+1}^{[l]}=\mathbf{b}_{k}^{[l]}-
+                         \alpha_k\mathbf{g}_{b,k}^{[l]}.
+ \label{eq:sgd-network}
+\end{equation}
+Các građien khối có cùng kích thước với khối tham số tương ứng.
+
+\begin{samepage}
+Với động lượng theo quy ước chưa chuẩn hóa, ta dùng thêm các biến
+tích lũy cùng kích thước, khởi tạo bằng không:
+\begin{align}
+ \mathbf{V}_{W,k+1}^{[l]}&=\beta\mathbf{V}_{W,k}^{[l]}
+                             +\mathbf{G}_{W,k}^{[l]},&
+ \mathbf{W}_{k+1}^{[l]}&=\mathbf{W}_{k}^{[l]}
+                             -\alpha\mathbf{V}_{W,k+1}^{[l]},\notag\\
+ \mathbf{v}_{b,k+1}^{[l]}&=\beta\mathbf{v}_{b,k}^{[l]}
+                             +\mathbf{g}_{b,k}^{[l]},&
+ \mathbf{b}_{k+1}^{[l]}&=\mathbf{b}_{k}^{[l]}
+                             -\alpha\mathbf{v}_{b,k+1}^{[l]}.
+ \label{eq:mom-network}
+\end{align}
+\end{samepage}
+Trong đó, $\mathbf{V}_{W,k}^{[l]}$ và $\mathbf{v}_{b,k}^{[l]}$ là các
+biến tích lũy cho trọng số và độ lệch; chỉ số dưới $k$ chỉ bước lặp,
+không phải lớp. Các građien phải được tính trên cùng một bộ tham số
+hiện tại trước khi cập nhật các khối.
+
+Trong huấn luyện mạng nơ-ron và mạng nơ-ron tích hợp thông tin vật lý,
+hàm mất mát nói chung không lồi theo toàn bộ tham số. Vì vậy, các kết
+quả lồi và lồi mạnh ở trên là những kết quả có điều kiện, không phải
+bảo đảm mặc nhiên cho mọi mạng. Giả thiết trơn cũng cần được kiểm tra:
+hàm kích hoạt không khả vi tại một số điểm không tự động đáp ứng
+khung $L$-trơn. Khi mất mát có nhiều nhóm số hạng với các trọng số khác
+nhau, cách lấy mẫu và cách tính trung bình phải giữ đúng các trọng số
+của hàm mục tiêu thì mới có thể dùng giả thiết không chệch.
+
+% \section*{Lưu ý đối chiếu và hiệu chỉnh nguồn mẫu}
+% \addcontentsline{toc}{section}{Lưu ý đối chiếu và hiệu chỉnh nguồn mẫu}
+
+% \noindent\textbf{Phạm vi sử dụng nguồn.}
+% Nguồn mẫu là tệp \texttt{Pasted text(2).txt} do người viết cung cấp,
+% trình bày phương pháp hạ dốc. Nguồn không chứa hai phần SGD và động lượng.
+% Hai phần mới kế thừa mạch trình bày của nguồn: bài toán và định nghĩa,
+% công thức thuật toán, bất đẳng thức nền tảng, rồi phân tích hội tụ.
+% Các giả thiết xác suất, chứng minh cho SGD, phân tích năng lượng và
+% phân tích phổ của động lượng là nội dung bổ sung, không phải nội dung
+% được trích từ tệp nguồn. Các tài liệu bổ sung được dẫn riêng trong bài.
+% Những lưu ý dưới đây phân biệt lỗi, điểm cần làm rõ và kết quả vẫn đúng.
+
+% \begin{enumerate}[label=\arabic*.,leftmargin=*]
+% \item \textbf{Làm rõ định nghĩa hướng giảm.}
+% Lưu ý: tại Định nghĩa gắn nhãn \texttt{def:descent\_dir} trong NGUỒN,
+% cụm ``tồn tại một giá trị $t>0$ đủ nhỏ'' chưa chỉ rõ lượng từ đối với
+% cả một khoảng bước. Nếu chỉ hiểu là tồn tại một bước dương bất kỳ,
+% phát biểu không mô tả đầy đủ ý nghĩa giảm cục bộ theo hướng.
+
+% Biểu thức nhất quán về mặt toán học là: tồn tại $\overline t>0$ sao cho
+% \[
+%  f(\mathbf{x}+t\mathbf{d})<f(\mathbf{x}),
+%  \qquad \text{với mọi }t\in(0,\overline t).
+% \]
+% Điều kiện $\nabla f(\mathbf{x})^T\mathbf{d}<0$ là điều kiện đủ, không
+% phải điều kiện cần cho định nghĩa này. Chẳng hạn, với $f(x)=-x^2$ tại
+% $x=0$, hướng $d=1$ làm giảm hàm với mọi $t>0$, dù $f'(0)d=0$.
+
+% \item \textbf{Điều kiện để chuẩn hóa građien.}
+% Lưu ý: tại công thức $d=-\nabla f(x)/\|\nabla f(x)\|$ trong NGUỒN,
+% biểu thức chưa nhất quán khi xét cả điểm có $\nabla f(x)=0$, vì mẫu số
+% khi ấy bằng không.
+
+% Biểu thức nhất quán về mặt toán học là
+% \[
+%  \mathbf{d}_{*}=-\frac{\nabla f(\mathbf{x})}{\|\nabla f(\mathbf{x})\|},
+%  \qquad \nabla f(\mathbf{x})\ne0,
+% \]
+% với bài toán cực tiểu hóa $\mathbf{d}^{T}\nabla f(\mathbf{x})$ dưới
+% điều kiện $\|\mathbf{d}\|=1$ theo chuẩn Euclid.
+% Nếu građien bằng không, tích vô hướng bằng không với mọi hướng đơn vị;
+% công thức chuẩn hóa không xác định.
+
+% \item \textbf{Bước làm giảm nghiêm ngặt phải dương.}
+% Lưu ý: ngay sau công thức (2.7.5) trong NGUỒN, câu ``tồn tại một bước
+% $\alpha$ không âm làm giảm giá trị hàm'' cần làm rõ rằng bước được dùng
+% phải dương; $\alpha=0$ không cho giảm nghiêm ngặt.
+
+% Biểu thức nhất quán về mặt toán học, khi $f$ là $L$-trơn và
+% $\nabla f(\mathbf{x})\ne0$, là
+% \[
+%  f(\mathbf{x}-\alpha\nabla f(\mathbf{x}))
+%  \leq f(\mathbf{x})-\alpha\left(1-\frac{L\alpha}{2}\right)
+%                  \|\nabla f(\mathbf{x})\|^2<f(\mathbf{x}),
+%  \qquad 0<\alpha<\frac{2}{L}.
+% \]
+% Khẳng định tồn tại bước không âm trong nguồn không sai theo logic tồn
+% tại, nhưng phát biểu với bước dương thể hiện đúng điều kiện của giảm
+% nghiêm ngặt.
+
+% \item \textbf{Giả thiết trong chứng minh hướng giảm.}
+% Lưu ý: mệnh đề gắn nhãn \texttt{prop:descent\_cond} trong NGUỒN chỉ giả
+% sử khả vi liên tục, trong khi phần mở đầu chứng minh dùng khai triển
+% Taylor có ma trận Hessian. Việc tồn tại đạo hàm bậc hai không được bảo
+% đảm bởi giả thiết khả vi liên tục. Công thức Taylor bậc hai là đúng
+% dưới các giả thiết mạnh hơn thích hợp, nhưng không cần cho mệnh đề này.
+
+% Biểu thức nhất quán về mặt toán học ngay dưới giả thiết khả vi là
+% \[
+%  f(\mathbf{x}+t\mathbf{d})-f(\mathbf{x})
+%  =t\nabla f(\mathbf{x})^T\mathbf{d}+o(t),\qquad t\downarrow0.
+% \]
+% Ở đây $o(t)/t\to0$ khi $t\downarrow0$. Nếu đặt
+% $a=-\nabla f(\mathbf{x})^T\mathbf{d}>0$, thì tồn tại $\overline t>0$
+% sao cho $|o(t)|\leq at/2$ với $0<t<\overline t$.
+% Suy ra $f(\mathbf{x}+t\mathbf{d})-f(\mathbf{x})\leq-at/2<0$.
+% Cách dùng định lý giá trị trung bình ở phần sau chứng minh của nguồn
+% cũng đủ dưới giả thiết đã nêu, nên có thể bỏ đoạn Taylor bậc hai.
+
+% \item \textbf{Ý nghĩa của bước $1/L$.}
+% Lưu ý: tại đoạn chọn $\alpha=1/L$ trước công thức (2.7.9) trong NGUỒN,
+% giá trị này cực tiểu hóa \emph{cận trên bậc hai theo bước} khi građien
+% khác không. Không nên hiểu đó luôn là bước cực tiểu hóa chính xác
+% $f(\mathbf{x}-\alpha\nabla f(\mathbf{x}))$.
+% Đây là điểm cần phân biệt về ý nghĩa, không phải lỗi của công thức (2.7.9).
+
+% \item \textbf{Cận số bước là điều kiện đủ.}
+% Lưu ý: tại đoạn cuối NGUỒN, các biểu thức cho số bước được gọi là
+% ``cần số bước lặp''. Cách diễn đạt này chưa nhất quán với lập luận vì
+% các định lý trước đó chỉ cung cấp cận trên của sai số; từ cận trên chỉ
+% suy ra điều kiện đủ để đạt sai số mong muốn, không suy ra số bước tối
+% thiểu cần thiết cho từng bài toán.
+
+% Biểu thức nhất quán về mặt toán học trong trường hợp lồi là: với
+% $\epsilon>0$, chỉ cần chọn một số nguyên $T\geq1$ thỏa
+% \[
+%  T\geq\left\lceil\frac{L\|\mathbf{x}^{0}-\mathbf{x}^{*}\|^2}
+%                                 {2\epsilon}\right\rceil
+% \]
+% để cận (2.7.11) bảo đảm $f(\mathbf{x}^{T})-f^{*}\leq\epsilon$.
+% Ký hiệu $\lceil a\rceil$ là số nguyên nhỏ nhất không bé hơn $a$.
+% Với $0<m<L$ và $\Delta=f(\mathbf{x}^{0})-f^{*}>\epsilon$, cận (2.7.15)
+% cho điều kiện đủ sát hơn
+% \[
+%  T\geq\left\lceil\frac{\log(\Delta/\epsilon)}
+%                          {-\log(1-m/L)}\right\rceil.
+% \]
+% Vì $-\log(1-u)\geq u$ với $0<u<1$, điều kiện đơn giản hơn
+% \[
+%  T\geq\left\lceil\frac{L}{m}\log\frac{\Delta}{\epsilon}\right\rceil
+% \]
+% cũng đủ. Nếu $\Delta\leq\epsilon$, điểm đầu đã đạt yêu cầu. Nếu $m=L$,
+% cận (2.7.14) cho sai số bằng không sau một bước với $\alpha=1/L$;
+% không dùng biểu thức có $\log(1-m/L)$ tại trường hợp biên này.
+
+% \item \textbf{Phạm vi giả thiết và cách tham chiếu.}
+% Phần mở đầu nguồn xét hàm lồi, còn phần ``Trường hợp Tổng quát'' thực
+% tế có chứng minh chỉ cần tính trơn và bị chặn dưới. Khi mở rộng sang
+% trường hợp không lồi, nên nói rõ việc bỏ giả thiết lồi.
+% Các kết quả suy ra từ (2.7.9), (2.7.11) và (2.7.13)--(2.7.15) vẫn
+% phù hợp với những giả thiết tương ứng.
+% Trong mã LaTeX, nên dùng \verb|\ref{prop:descent_cond}| khi tham chiếu
+% mệnh đề; \verb|\eqref| dành cho công thức.
+% \end{enumerate}
+
