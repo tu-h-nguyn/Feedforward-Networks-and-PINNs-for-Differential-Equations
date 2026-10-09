@@ -1,0 +1,1 @@
+# Feedforward-Networks-and-PINNs-for-Differential-Equations
