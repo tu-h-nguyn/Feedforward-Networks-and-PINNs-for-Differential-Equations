@@ -1,0 +1,167 @@
+\subsubsection{Sự suy biến của mạng nơ-ron tuyến tính đa tầng}
+
+\begin{definition}{Hàm kích hoạt đồng nhất\\}
+Toán tử kích hoạt đồng nhất $\sigma_{\mathrm{id}}: \mathbb{R} \to \mathbb{R}$ được xác định bởi ánh xạ đồng nhất trên trường số thực:
+\begin{equation}
+    \sigma_{\mathrm{id}}(z) = z, \qquad \forall z \in \mathbb{R}.
+\end{equation}
+Xét trên không gian vector đa chiều $\mathbf{z} \in \mathbb{R}^d$, toán tử vector $\boldsymbol{\sigma}_{\mathrm{id}}: \mathbb{R}^d \to \mathbb{R}^d$ tác động theo từng tọa độ chính là toán tử đồng nhất $\operatorname{id}_{\mathbb{R}^d}$, với tập ảnh: $\operatorname{Im}(\sigma_{\mathrm{id}}) = \mathbb{R}$.
+
+\textbf{Tính chất giải tích và đạo hàm.}
+\begin{enumerate}
+    \item \textit{Tính trơn:} Ánh xạ $\sigma_{\mathrm{id}}$ là một đẳng cấu tuyến tính và thuộc lớp hàm khả vi vô hạn $C^\infty(\mathbb{R})$.
+    \item \textit{Gradient bậc một:} Đạo hàm bậc nhất là một hằng số đơn vị trên toàn miền xác định:
+    \begin{equation}
+        \sigma_{\mathrm{id}}'(z) = 1, \qquad \forall z \in \mathbb{R}.
+    \end{equation}
+    Khi đó, ma trận Jacobian của phép biến đổi tọa độ đồng nhất là ma trận đơn vị: $\mathbf{J}_{\boldsymbol{\sigma}_{\mathrm{id}}}(\mathbf{z}) = \mathbf{I}_d$.
+    \item \textit{Sự triệt tiêu đạo hàm bậc cao:} Mọi đạo hàm cấp $k \ge 2$ đều đồng nhất bằng $0$:
+    \begin{equation}
+        \sigma_{\mathrm{id}}^{(k)}(z) = 0, \qquad \forall z \in \mathbb{R}, \quad \forall k \ge 2.
+    \end{equation}
+\end{enumerate}
+\end{definition}
+
+
+Xét một mạng nơ-ron truyền thẳng gồm $L$ lớp ẩn.
+Ký hiệu số lượng nơ-ron tại các lớp lần lượt là $n_0, n_1, \dots, n_{L+1}$, với $n_0 = d$ là số chiều đầu vào và $n_{L+1} = m$ là số chiều đầu ra.
+
+Tại mỗi lớp $l \in \{1, 2, \dots, L+1\}$, ma trận trọng số và véc-tơ độ lệch tương ứng được ký hiệu là $\mathbf{W}^{(l)} \in \mathbb{R}^{n_l \times n_{l-1}}$ và $\mathbf{b}^{(l)} \in \mathbb{R}^{n_l}$. Phép biến đổi affin ánh xạ từ véc-tơ kích hoạt của lớp trước $\mathbf{a}^{(l-1)}$ sang véc-tơ tiền kích hoạt của lớp hiện tại $\mathbf{z}^{(l)}$ được định nghĩa là:
+
+\begin{equation}
+    \mathbf{z}^{(l)} = T_l(\mathbf{a}^{(l-1)}) \triangleq \mathbf{W}^{(l)} \mathbf{a}^{(l-1)} + \mathbf{b}^{(l)},
+\end{equation}
+
+với quy ước $\mathbf{a}^{(0)} = \mathbf{x} \in \mathbb{R}^d$ là véc-tơ dữ liệu đầu vào. Tại mỗi lớp, véc-tơ kích hoạt đầu ra được tính bởi $\mathbf{a}^{(l)} = \sigma(\mathbf{z}^{(l)})$.
+
+\begin{theorem}{Sự suy biến của mạng nơ-ron tuyến tính đa tầng} \label{thm:linear_collapse}
+
+
+Giả sử tất cả $L+1$ lớp của mạng đều sử dụng hàm kích hoạt đồng nhất $\sigma_{\mathrm{id}}(z) = z$. Khi đó, hàm biểu diễn toàn cục của mạng $f: \mathbb{R}^d \to \mathbb{R}^m$ suy biến thành một phép biến đổi affine đơn tầng duy nhất:
+
+\begin{equation}
+    \mathbf{y} = f(\mathbf{x}) = \overline{\mathbf{W}}\mathbf{x} + \overline{\mathbf{b}}, \label{eq:collapsed_model}
+\end{equation}
+
+trong đó ma trận trọng số tổng hợp $\overline{\mathbf{W}} \in \mathbb{R}^{m \times d}$ và véc-tơ độ lệch tổng hợp $\overline{\mathbf{b}} \in \mathbb{R}^m$ được xác định tường minh bởi:
+
+\begin{align}
+    \overline{\mathbf{W}} &= \prod_{l=L+1}^{1} \mathbf{W}^{(l)} = \mathbf{W}^{(L+1)} \mathbf{W}^{(L)} \cdots \mathbf{W}^{(1)}, \label{eq:W_bar} \\
+    \overline{\mathbf{b}} &= \mathbf{b}^{(L+1)} + \sum_{i=1}^L \left( \prod_{j=L+1}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)}, \label{eq:b_bar}
+\end{align}
+
+với quy ước tích có thứ tự của các ma trận $\prod_{j=p}^{q} \mathbf{A}_j \triangleq \mathbf{A}_p \mathbf{A}_{p-1} \cdots \mathbf{A}_q$ khi $p \ge q$.
+\end{theorem}
+
+\begin{proof}
+Chúng ta sẽ chứng minh định lý bằng phương pháp quy nạp toán học theo số lớp $l$. Gọi $\mathbf{a}^{(l)}$ là véc-tơ đầu ra của lớp thứ $l$. Ta cần chứng minh:
+\begin{equation}
+    \mathbf{a}^{(l)} = \left( \prod_{j=l}^{1} \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(l)} + \sum_{i=1}^{l-1} \left( \prod_{j=l}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)}.
+\end{equation}
+
+\textbf{Cơ sở quy nạp ($l = 1$):} \\
+Do hàm kích hoạt là hàm đồng nhất, ta có:
+\begin{equation}
+    \mathbf{a}^{(1)} = \sigma_{\mathrm{id}}(\mathbf{z}^{(1)}) = \mathbf{W}^{(1)}\mathbf{a}^{(0)} + \mathbf{b}^{(1)} = \mathbf{W}^{(1)}\mathbf{x} + \mathbf{b}^{(1)}.
+\end{equation}
+Công thức đúng với $l = 1$ (tổng sigma bằng 0 theo quy ước tổng rỗng).
+
+\textbf{Bước quy nạp:} \\
+Giả sử công thức đúng cho lớp thứ $l = k$ ($1 \le k \le L$). Xét tại lớp thứ $k+1$:
+\begin{align*}
+    \mathbf{a}^{(k+1)} &= \sigma_{\mathrm{id}}(\mathbf{W}^{(k+1)}\mathbf{a}^{(k)} + \mathbf{b}^{(k+1)}) \\
+    &= \mathbf{W}^{(k+1)} \left[ \left( \prod_{j=k}^{1} \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(k)} + \sum_{i=1}^{k-1} \left( \prod_{j=k}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)} \right] + \mathbf{b}^{(k+1)} \\
+    &= \left( \mathbf{W}^{(k+1)} \prod_{j=k}^{1} \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{W}^{(k+1)}\mathbf{b}^{(k)} + \sum_{i=1}^{k-1} \left( \mathbf{W}^{(k+1)} \prod_{j=k}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)} + \mathbf{b}^{(k+1)} \\
+    &= \left( \prod_{j=k+1}^{1} \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(k+1)} + \sum_{i=1}^{k} \left( \prod_{j=k+1}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)}.
+\end{align*}
+Theo nguyên lý quy nạp, công thức đúng với mọi $l \in \{1, \dots, L+1\}$. 
+Thay $l = L+1$ và đặt $\mathbf{y} = \mathbf{a}^{(L+1)}$, ta thu được chính xác kết quả của các phương trình \eqref{eq:W_bar} và \eqref{eq:b_bar}.
+\end{proof}
+
+
+\begin{proof}
+
+Vì $\sigma_{\mathrm{id}}$ là ánh xạ đồng nhất, vector kích hoạt tại mỗi tầng $l \in \{1, \dots, L+1\}$ thỏa $\mathbf{a}^{(l)} = \sigma_{\mathrm{id}}(\mathbf{z}^{(l)}) = \mathbf{z}^{(l)}$. Do đó, toàn bộ mạng tương đương với phép hợp thành liên tiếp của $L+1$ ánh xạ affine:
+
+\begin{equation}
+    \mathbf{y} = \mathbf{a}^{(L+1)} = (T_{L+1} \circ T_L \circ \dots \circ T_1)(\mathbf{x}).
+\end{equation}
+
+\textbf{Trường hợp 1: Mô hình thuần nhất không có độ lệch ($\mathbf{b}^{(l)} = \mathbf{0}, \forall l$).} \\
+Ta tiến hành chứng minh bằng quy nạp toán học theo số lớp $l$. 
+\begin{itemize}
+    \item \textit{Cơ sở quy nạp ($l = 1$):} $\mathbf{a}^{(1)} = \mathbf{W}^{(1)}\mathbf{x}$, mệnh đề hiển nhiên đúng.
+    \item \textit{Bước quy nạp:} Giả sử mệnh đề đúng đến lớp $p \le L$, nghĩa là:
+    \begin{equation}
+        \mathbf{a}^{(p)} = \left(\mathbf{W}^{(p)} \mathbf{W}^{(p-1)} \cdots \mathbf{W}^{(1)}\right) \mathbf{x}.
+    \end{equation}
+    Xét lớp $p+1$, theo tính kết hợp của phép nhân ma trận:
+    \begin{align}
+        \mathbf{a}^{(p+1)} &= \mathbf{W}^{(p+1)} \mathbf{a}^{(p)} \nonumber \\
+        &= \mathbf{W}^{(p+1)} \left[ \left(\mathbf{W}^{(p)} \mathbf{W}^{(p-1)} \cdots \mathbf{W}^{(1)}\right) \mathbf{x} \right] \nonumber \\
+        &= \left(\mathbf{W}^{(p+1)} \mathbf{W}^{(p)} \cdots \mathbf{W}^{(1)}\right) \mathbf{x}.
+    \end{align}
+\end{itemize}
+Theo nguyên lý quy nạp, tại lớp đầu ra $l = L+1$:
+\begin{equation}
+    \mathbf{y} = \mathbf{a}^{(L+1)} = \left(\prod_{j=L+1}^{1} \mathbf{W}^{(j)}\right) \mathbf{x} = \overline{\mathbf{W}}\mathbf{x}.
+\end{equation}
+
+\textbf{Trường hợp 2: Mô hình tổng quát có độ lệch ($\mathbf{b}^{(l)} \neq \mathbf{0}$).} \\
+Ta chứng minh công thức tổng quát của vector kích hoạt tại lớp  $k \in \{1, \dots, L+1\}$ bằng quy nạp:
+\begin{equation}
+    \mathbf{a}^{(k)} = \left( \prod_{j=k}^1 \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(k)} + \sum_{i=1}^{k-1} \left( \prod_{j=k}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)}. \tag{$*$}
+\end{equation}
+\begin{itemize}
+    \item \textit{Cơ sở quy nạp ($k = 1$):} 
+    $\mathbf{a}^{(1)} = \mathbf{W}^{(1)}\mathbf{x} + \mathbf{b}^{(1)}$. ($*$) đúng (tổng rỗng quy ước bằng $\mathbf{0}$).
+    \item \textit{Bước quy nạp:} Giả sử ($*$) đúng với $k = p \le L$. Tại lớp $p+1$:
+    \begin{align}
+        \mathbf{a}^{(p+1)} &= \mathbf{W}^{(p+1)} \mathbf{a}^{(p)} + \mathbf{b}^{(p+1)} \nonumber \\
+        &= \mathbf{W}^{(p+1)} \left[ \left( \prod_{j=p}^1 \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(p)} + \sum_{i=1}^{p-1} \left( \prod_{j=p}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)} \right] + \mathbf{b}^{(p+1)} \nonumber \\
+        &= \left( \mathbf{W}^{(p+1)} \prod_{j=p}^1 \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(p+1)} + \mathbf{W}^{(p+1)}\mathbf{b}^{(p)} + \sum_{i=1}^{p-1} \left( \mathbf{W}^{(p+1)} \prod_{j=p}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)} \nonumber \\
+        &= \left( \prod_{j=p+1}^1 \mathbf{W}^{(j)} \right) \mathbf{x} + \mathbf{b}^{(p+1)} + \sum_{i=1}^p \left( \prod_{j=p+1}^{i+1} \mathbf{W}^{(j)} \right) \mathbf{b}^{(i)}.
+    \end{align}
+\end{itemize}
+Như vậy, công thức ($*$) đúng với $k = p+1$. Đặt $k = L+1$, ta thu được chính xác biểu thức \eqref{eq:collapsed_model} với $\overline{\mathbf{W}}$ và $\overline{\mathbf{b}}$ cho bởi \eqref{eq:W_bar} và \eqref{eq:b_bar}. 
+\end{proof}
+
+% Từ Định lý \ref{thm:linear_collapse}, chúng ta có thể rút ra các tính chất đại số nền tảng và giới hạn nghiêm ngặt về dung lượng biểu diễn của các kiến trúc mạng không có hàm kích hoạt phi tuyến.
+
+\begin{remark}{Tính khép kín của phép hợp thành affine}
+
+Trong không gian các ánh xạ affine, phép toán hàm hợp có tính khép kín. Cụ thể, nếu $T_1: \mathbb{R}^p \to \mathbb{R}^q$ và $T_2: \mathbb{R}^q \to \mathbb{R}^r$ là các biến đổi affin, thì ánh xạ hợp thành $T_2 \circ T_1: \mathbb{R}^p \to \mathbb{R}^r$ cũng là một biến đổi affine. 
+Bản chất của Định lý \ref{thm:linear_collapse} chính là hệ quả của tính chất đại số cơ bản này khi áp dụng liên tiếp trên $L+1$ lớp.
+\end{remark}
+
+Kết quả này cho thấy việc tăng độ sâu của mạng không đem lại bất kỳ khả năng nội suy nào phức tạp hơn cho mô hình tuyến tính truyền thống. 
+
+Thậm chí, khi kết hợp với cấu trúc phân loại ở lớp cuối, mạng suy biến về cấu trúc tối giản nhất:
+
+\begin{corollary}{Sự suy biến về mô hình Perceptron đơn tầng}
+\label{cor:perceptron_collapse}
+
+Xét một mạng nơ-ron đa tầng với hàm kích hoạt đồng nhất tại tất cả các tầng ẩn. Tầng đầu ra gồm một nơ-ron duy nhất sử dụng hàm kích hoạt dấu $\mathrm{sgn}(\cdot)$ để thực hiện bài toán phân loại nhị phân. Giá trị dự đoán được tính bởi:
+\begin{equation}
+    \hat{y} = \mathrm{sgn}\left(\mathbf{w}^{(L+1)\top} \mathbf{a}^{(L)} + b^{(L+1)}\right).
+\end{equation}
+Khi đó, toàn bộ kiến trúc mạng biểu diễn chính xác một mô hình Perceptron đơn tầng (Rosenblatt Perceptron):
+\begin{equation}
+    \hat{y} = \mathrm{sgn}\left(\overline{\mathbf{w}}^\top \mathbf{x} + \overline{b}\right),
+\end{equation}
+trong đó vector trọng số tổng hợp $\overline{\mathbf{w}}^\top = \mathbf{w}^{(L+1)\top} \prod_{j=L}^1 \mathbf{W}^{(j)} \in \mathbb{R}^{1 \times d}$ và $\overline{b} \in \mathbb{R}$ được tính theo phương trình \eqref{eq:b_bar}.
+\end{corollary}
+
+Nghiêm trọng hơn việc không thể học được các mặt phân định phi tuyến, mạng nơ-ron tuyến tính đa tầng còn phải đối mặt với hiện tượng mất mát thông tin không thể phục hồi do cấu trúc hạng của ma trận.
+
+\begin{corollary}{Giới hạn dung lượng biểu diễn do hiện tượng thắt nút cổ chai}
+
+\label{cor:rank_bottleneck}
+Giả sử bỏ qua các vector độ lệch $\mathbf{b}$ để đơn giản hóa, phép biến đổi tổng hợp của mạng là $\mathbf{y} = \overline{\mathbf{W}}\mathbf{x}$. Theo tính chất của hạng ma trận đối với phép nhân, ta luôn có:
+\begin{equation}
+    \mathrm{rank}(\overline{\mathbf{W}}) = \mathrm{rank}\left(\prod_{l=L+1}^1 \mathbf{W}^{(l)}\right) \le \min_{1 \le l \le L+1} \{ \mathrm{rank}(\mathbf{W}^{(l)}) \} \le \min_{0 \le l \le L+1} \{n_l\}. \label{eq:rank_bottleneck}
+\end{equation}
+\end{corollary}
+
+Phương trình \eqref{eq:rank_bottleneck} chỉ ra một giới hạn cứng: Nếu tồn tại bất kỳ tầng ẩn $l$ nào có số lượng nơ-ron $n_l < \min(d, m)$, ma trận tham số tổng hợp $\overline{\mathbf{W}}$ sẽ trở thành ma trận suy biến. Cấu trúc này tạo ra một \emph{nút thắt cổ chai thông tin}, ép toàn bộ dữ liệu đầu vào phải chiếu qua một không gian con affin có số chiều nhỏ hơn, dẫn đến sự phá hủy thông tin không thể đảo ngược. Trái lại, khi sử dụng các hàm kích hoạt phi tuyến $\sigma$ (như ReLU, Tanh), mạng nơ-ron có thể phá vỡ ràng buộc về không gian con tuyến tính này, bảo toàn thông tin chiều cao và ánh xạ dữ liệu lên các đa tạp phi tuyến phức tạp.
+
